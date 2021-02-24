@@ -1,7 +1,7 @@
 {
     "name": "Pix Thumbnail Grabber",
     "version": "0.1",
-    "description": "Select Thumbnail images to download using the PixGrabber Program",
+    "description": "Pick and choose groups of Thumbnails to download, using the PixGrabber Program. Requires PixGrabber - https://github.com/xxchaosxx210/wxPixGrabber.git",
     "manifest_version": 2,
     "icons":{
         "16": "images/pix16.png",

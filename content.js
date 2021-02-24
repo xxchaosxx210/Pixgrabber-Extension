@@ -56,6 +56,6 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
     }
 });
 
-window.addEventListener("load", function(event){
+window.addEventListener("DOMContentLoaded", function(event){
     createThumbnailGroups();
 });
