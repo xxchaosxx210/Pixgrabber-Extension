@@ -1,3 +1,4 @@
+
 function getThumbnailsFromPage(){
     links = []
     // find thumbnail images
@@ -15,9 +16,11 @@ function getThumbnailsFromPage(){
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
     if(msg.text == "report_back"){
-        var links = getThumbnailsFromPage()
-        var j = {"links": links, "title": document.title, "url": window.location.href};
+        l = getThumbnailsFromPage();
+        for(i=0;i<l.length;i++){
+            console.log(l[i].src)
+        }
+        var j = {"links": l, "title": document.title, "url": window.location.href};
         sendResponse(JSON.stringify(j));
-        port.postMessage(JSON.stringify(j));
     }
 });

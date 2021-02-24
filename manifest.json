@@ -29,8 +29,8 @@
         "default_title": "PixGrabber Helper"
     },
     "content_scripts": [{
-        "matches": ["http://*/", "https://*/"],
-        "js": ["thumbnail_finder.js"],
+        "matches": ["<all_urls>"],
+        "js": ["content.js"],
         "match_about_blank": false,
         "run_at": "document_idle"
     }]
