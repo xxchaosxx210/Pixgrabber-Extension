@@ -1,0 +1,37 @@
+{
+    "name": "Pix Thumbnail Grabber",
+    "version": "0.1",
+    "description": "Select Thumbnail images to download using the PixGrabber Program",
+    "manifest_version": 2,
+    "icons":{
+        "16": "images/pix16.png",
+        "32": "images/pix32.png",
+        "48": "images/pix48.png",
+        "128": "images/pix128.png"
+    },
+    "author": "Paul Millar",
+    "permissions": [
+        "https://*/", 
+        "http://*/", 
+        "storage",
+        "activeTab"],
+    "background": {
+        "scripts": ["background.js"],
+        "persistent": false
+    },
+    "browser_action": {
+        "default_icon": {
+            "16": "images/pix16.png",
+            "32": "images/pix32.png",
+            "48": "images/pix48.png",
+            "128": "images/pix128.png"
+        },
+        "default_title": "PixGrabber Helper"
+    },
+    "content_scripts": [{
+        "matches": ["http://*/", "https://*/"],
+        "js": ["thumbnail_finder.js"],
+        "match_about_blank": false,
+        "run_at": "document_idle"
+    }]
+}
