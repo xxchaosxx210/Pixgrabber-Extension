@@ -32,6 +32,6 @@
         "matches": ["<all_urls>"],
         "js": ["content.js"],
         "match_about_blank": false,
-        "run_at": "document_idle"
+        "run_at": "document_start"
     }]
 }
