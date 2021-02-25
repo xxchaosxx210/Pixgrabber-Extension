@@ -9,10 +9,6 @@
     cursor: pointer;
 }
 
-.pixgrabber_overlay:hover{
-    cursor: pointer;
-}
-
 .pixgrabber_overlay{
     position: absolute;
     left: 0;
