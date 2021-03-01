@@ -1,30 +1,17 @@
+const ERROR_MESSAGE = "Unable to connect to PixGrabber. Make sure you have PixGrabber installed and running. Find it here: https://github.com/xxchaosxx210/wxPixGrabber.git";
+
+const ID_IFRAME = "pixgrabber-iframe";
+
 function createThumbnailGroups(){
     group = [];
     groups = [];
     for(let element of document.getElementsByTagName("A")){
         if(element.tagName == "A"){
             if((element.hasChildNodes()) && element.firstChild.tagName == "IMG"){
-                if(group.length == 0){
-                    // create new div tag
-                    // div = document.createElement("div");
-                    // div.className = DIV_CLASSNAME;
-                    // div.style.border = STYLE_SELECTED_OFF;
-                }
-                // parent = element.parentNode;
-                // parent.replaceChild(div, element);
-                // div.appendChild(element);
-                // element.addEventListener("click", function(evt){
-                //     evt.preventDefault();
-                // });
-                // div.setAttribute("checked", false);
-                // div.addEventListener("click", onDivClick, false);
                 group.push({"href": element.href, "src": element.firstChild.src});
             }
             else{
                 if(group.length > 0){
-                    // var overlay = document.createElement("div");
-                    // overlay.className = OVERLAY_CLASSNAME;
-                    // div.appendChild(overlay);
                     groups.push(group);
                     group = [];
                 }
@@ -45,68 +32,67 @@ function getThumbnails(){
     return thumbs;
 }
 
-function getSelected(){
-    selected = []
-    for(let div of document.getElementsByClassName(DIV_CLASSNAME)){
-        if(div.checked){
-            for(let a of div.getElementsByTagName("a")){
-                selected.push({"href": a.href, "src": a.firstChild.src});
+
+function sendRequest(jstring){
+    if(jstring){
+        b = btoa(jstring);
+        xhr = new XMLHttpRequest();
+        xhr.timeout = 2000;
+        xhr.open("POST", "http://localhost:5000/set-html", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.addEventListener("load", function(event){
+            if(event.response == 200){
+                console.log("Connected to PixGrabber");
             }
-        }
+        });
+        xhr.addEventListener("error", function(event){
+            window.alert(ERROR_MESSAGE);
+        });
+        xhr.addEventListener("timeout", function(event){
+            window.alert(ERROR_MESSAGE);
+        });
+        xhr.send(b);
     }
-    return selected;
 }
 
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
-    if(msg.text == "report_back"){
-        selected = getSelected();
-        var j = {"links": selected, "title": document.title, "url": window.location.href};
-        sendResponse(JSON.stringify(thumbs));
+    if(msg.text == "load-frame"){
+        var iframe = document.getElementById(ID_IFRAME);
+        if(!iframe){
+            var iframe = document.createElement("iframe");
+            iframe.className = "pixgrabber_frame";
+            iframe.id = ID_IFRAME;
+            iframe.src = chrome.runtime.getURL("frame.html");
+            let element = document.body.firstChild;
+            document.body.insertBefore(iframe, element);
+            sendResponse({status: "created"});
+        }
+        else{
+            document.body.removeChild(iframe);
+            sendResponse({status: "deleted"});
+        }
+
     }else if(msg.text == "iframe"){
         var groups = createThumbnailGroups();
         sendResponse({links: groups, "title": document.title});
+    }else if(msg.text == "onsubmit"){
+        var jstring = JSON.stringify({"links": msg.links, "title": document.title, "url": window.location.href});
+        sendResponse({"status": "ok"});
+        sendRequest(jstring);
     }
 });
 
 //DOMContentLoaded
-window.addEventListener("DOMContentLoaded", function(event){
-    var extensionOrigin = 'chrome-extension://' + chrome.runtime.id;
-    if(!location.ancestorOrigins.contains(extensionOrigin)){
-        //createThumbnailGroups();
-        var iframe = document.createElement("iframe");
-        iframe.id = "pixgrabber_frame";
-        iframe.src = chrome.runtime.getURL("frame.html");
-        iframe.style.cssText = "background:white;top:0;left:0;width:100%;height:600px;display:block;z-index:1000;";
-        let element = document.body.firstChild;
-        document.body.insertBefore(iframe, element);
-        // var view = document.createElement("div");
-        // view.id = "pixgrabber_view";
-        // view.style.cssText = "background:white;top:0;left:0;width:100%;height:350px;display:block;overflow:scroll";
-        //child = document.body.firstChild;
-        //document.body.replaceChild(view, child);
-        //view.appendChild(child);
-
-        // for(let group of createThumbnailGroups()){
-        //     div = document.createElement("div");
-        //     div.className = DIV_CLASSNAME;
-        //     div.style.border = STYLE_SELECTED_OFF;
-        //     for(let tags of group){
-        //         var a = document.createElement("a");
-        //         var img = document.createElement("img");
-        //         a.href = tags.href;
-        //         img.src = tags.src;
-        //         a.appendChild(img);
-        //         div.appendChild(a);
-        //         a.addEventListener("click", function(evt){
-        //             evt.preventDefault();
-        //         });
-        //         div.setAttribute("checked", false);
-        //         div.addEventListener("click", onDivClick, false);
-        //     }
-        //     var overlay = document.createElement("div");
-        //     overlay.className = OVERLAY_CLASSNAME;
-        //     div.appendChild(overlay);
-        //     view.appendChild(div);
-        // }
-    }
-});
+// window.addEventListener("DOMContentLoaded", function(event){
+//     var extensionOrigin = 'chrome-extension://' + chrome.runtime.id;
+//     if(!location.ancestorOrigins.contains(extensionOrigin)){
+//         //createThumbnailGroups();
+//         var iframe = document.createElement("iframe");
+//         iframe.className = "pixgrabber_frame";
+//         iframe.id = "pixgrabber_frame";
+//         iframe.src = chrome.runtime.getURL("frame.html");
+//         let element = document.body.firstChild;
+//         document.body.insertBefore(iframe, element);
+//     }
+// });

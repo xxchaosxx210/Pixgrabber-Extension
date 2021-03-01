@@ -21,16 +21,37 @@ function onDivClick(event){
     }
 }
 
+function getSelected(){
+    selected = []
+    for(let div of document.getElementsByClassName(DIV_CLASSNAME)){
+        if(div.checked){
+            for(let a of div.getElementsByTagName("a")){
+                selected.push({"href": a.href, "src": a.firstChild.src});
+            }
+        }
+    }
+    return selected;
+}
+
+function onSubmitButton(event){
+    selected = getSelected();
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs){
+        chrome.tabs.sendMessage(tabs[0].id, {text: "onsubmit", links: selected}, function(resp){
+            
+        });
+    });
+}
+
 function onResponse(json){
     var view = document.createElement("div");
     view.id = "pixgrabber_view";
-    view.style.cssText = "background:white;top:0;left:0;width:100%;height:350px;display:block;overflow:scroll";
     document.body.appendChild(view);
 
     for(let group of json.links){
         div = document.createElement("div");
         div.className = DIV_CLASSNAME;
         div.style.border = STYLE_SELECTED_OFF;
+        //div.style.border = STYLE_SELECTED_OFF;
         for(let tags of group){
             var a = document.createElement("a");
             var img = document.createElement("img");
@@ -49,8 +70,15 @@ function onResponse(json){
         div.appendChild(overlay);
         view.appendChild(div);
     }
+    var submit = document.createElement("input");
+    submit.type = "button";
+    submit.className = "pixgrabber_submit";
+    submit.value = "Submit";
+    submit.addEventListener("click", onSubmitButton);
+    document.body.appendChild(submit);
 }
 
 chrome.tabs.query({active: true, currentWindow: true}, function(tabs){
+    chrome.tabs.insertCSS(tabs[0].id, {file: "frame.css"});
     chrome.tabs.sendMessage(tabs[0].id, {text: "iframe"}, onResponse);
 });
