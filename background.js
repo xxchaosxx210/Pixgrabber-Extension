@@ -9,25 +9,27 @@ function onInstall(){
 }
 
 function todoCallback(jstring){
-    if(jstring){
-        b = btoa(jstring);
-        xhr = new XMLHttpRequest();
-        xhr.timeout = 2000;
-        xhr.open("POST", "http://localhost:5000/set-html", true);
-        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        xhr.addEventListener("load", function(event){
-            if(event.response == 200){
-                console.log("Connected to PixGrabber");
-            }
-        });
-        xhr.addEventListener("error", function(event){
-            window.alert(ERROR_MESSAGE);
-        });
-        xhr.addEventListener("timeout", function(event){
-            window.alert(ERROR_MESSAGE);
-        });
-        xhr.send(b);
-    }
+    // if(jstring){
+    //     b = btoa(jstring);
+    //     xhr = new XMLHttpRequest();
+    //     xhr.timeout = 2000;
+    //     xhr.open("POST", "http://localhost:5000/set-html", true);
+    //     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    //     xhr.addEventListener("load", function(event){
+    //         if(event.response == 200){
+    //             console.log("Connected to PixGrabber");
+    //         }
+    //     });
+    //     xhr.addEventListener("error", function(event){
+    //         window.alert(ERROR_MESSAGE);
+    //     });
+    //     xhr.addEventListener("timeout", function(event){
+    //         window.alert(ERROR_MESSAGE);
+    //     });
+    //     xhr.send(b);
+    // }
+    var j = JSON.parse(jstring);
+    console.log(j);
 }
 
 chrome.browserAction.onClicked.addListener(function(tab){
