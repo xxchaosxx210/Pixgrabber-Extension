@@ -5,6 +5,7 @@
     const MIN_DRAWER_HEIGHT = 220;
     const MINIMIZED_HEIGHT = 52;
     const UI_STATE_KEY = "pickerUiState";
+    const NOTICE_HIDE_MS = 3200;
 
     let currentHostname = "";
     let currentPageUrl = "";
@@ -14,6 +15,7 @@
     let lastScrollTop = 0;
     let expandedGroupIndexes = new Set();
     let scrollSaveTimer = null;
+    let noticeTimer = null;
 
     function hostPatterns(hostname) {
         return [
@@ -52,6 +54,103 @@
         status.textContent = text;
         status.classList.toggle("success", state === "success");
         status.classList.toggle("error", state === "error");
+    }
+
+    function clearNotice() {
+        const notice = document.getElementById("pixgrabber_notice");
+        if (!notice) {
+            return;
+        }
+
+        if (noticeTimer !== null) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        notice.hidden = true;
+        notice.classList.remove("success", "error", "info");
+    }
+
+    function showNotice(state, title, message, autoHide = false) {
+        const notice = document.getElementById("pixgrabber_notice");
+        const icon = document.getElementById("pixgrabber_notice_icon");
+        const titleNode = document.getElementById("pixgrabber_notice_title");
+        const messageNode = document.getElementById("pixgrabber_notice_message");
+
+        if (!notice || !icon || !titleNode || !messageNode) {
+            return;
+        }
+
+        if (noticeTimer !== null) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        notice.classList.remove("success", "error", "info");
+        notice.classList.add(state || "info");
+
+        if (state === "success") {
+            icon.textContent = "✓";
+        } else if (state === "error") {
+            icon.textContent = "!";
+        } else {
+            icon.textContent = "i";
+        }
+
+        titleNode.textContent = title;
+        messageNode.textContent = message;
+        notice.hidden = false;
+
+        if (autoHide) {
+            noticeTimer = window.setTimeout(clearNotice, NOTICE_HIDE_MS);
+        }
+    }
+
+    function renderViewState(state, title, message, actionLabel = "") {
+        const view = document.getElementById("pixgrabber_view");
+        if (!view) {
+            return;
+        }
+
+        view.replaceChildren();
+
+        const card = document.createElement("div");
+        card.className = `pixgrabber_state_card ${state}`;
+
+        const icon = document.createElement("div");
+        icon.className = `pixgrabber_state_icon ${state}`;
+        icon.setAttribute("aria-hidden", "true");
+
+        if (state === "loading") {
+            const spinner = document.createElement("span");
+            spinner.className = "pixgrabber_spinner";
+            icon.appendChild(spinner);
+        } else if (state === "empty") {
+            icon.textContent = "○";
+        } else {
+            icon.textContent = "!";
+        }
+
+        const titleNode = document.createElement("div");
+        titleNode.className = "pixgrabber_state_title";
+        titleNode.textContent = title;
+
+        const messageNode = document.createElement("div");
+        messageNode.className = "pixgrabber_state_message";
+        messageNode.textContent = message;
+
+        card.append(icon, titleNode, messageNode);
+
+        if (actionLabel) {
+            const action = document.createElement("button");
+            action.className = "pixgrabber_state_action";
+            action.type = "button";
+            action.textContent = actionLabel;
+            action.addEventListener("click", requestGroups);
+            card.appendChild(action);
+        }
+
+        view.appendChild(card);
     }
 
 
@@ -271,6 +370,11 @@
 
         const running = await checkPixGrabberStatus();
         if (!running) {
+            showNotice(
+                "error",
+                "PixGrabber isn’t running",
+                "Start the desktop app, then click Send to PixGrabber again."
+            );
             setFooterStatus(
                 "PixGrabber isn't running. Start the desktop app, then try again.",
                 "error"
@@ -290,6 +394,12 @@
     }
 
     function requestGroups() {
+        clearNotice();
+        renderViewState(
+            "loading",
+            "Scanning page…",
+            "Looking for linked thumbnail groups in page order."
+        );
         setFooterStatus("Scanning this page for thumbnail groups…");
         postToParent("request-groups");
     }
@@ -386,10 +496,12 @@
         const groups = Array.isArray(json.links) ? json.links : [];
 
         if (groups.length === 0) {
-            const empty = document.createElement("div");
-            empty.className = "pixgrabber_empty";
-            empty.textContent = "No thumbnail groups found on this page.";
-            view.appendChild(empty);
+            renderViewState(
+                "empty",
+                "No image groups found",
+                "PixGrabber couldn't find any linked thumbnail groups on this page.",
+                "Scan again"
+            );
             expandedGroupIndexes.clear();
             saveUiState(false);
             updateSelectionSummary();
@@ -397,6 +509,8 @@
             restoreScrollPosition();
             return;
         }
+
+        clearNotice();
 
         groups.forEach((group, index) => {
             const div = document.createElement("section");
@@ -491,16 +605,26 @@
         updateSelectionSummary();
 
         if (message.ok) {
+            showNotice(
+                "success",
+                "Sent to PixGrabber",
+                "Selected images were handed to the desktop app.",
+                true
+            );
             setFooterStatus("Sent to PixGrabber ✓", "success");
             return;
         }
 
-        setFooterStatus(
-            message.error
-                ? `Unable to send: ${message.error}`
-                : "Unable to connect to PixGrabber.",
-            "error"
+        const errorMessage = message.error
+            ? message.error
+            : "Unable to connect to PixGrabber.";
+
+        showNotice(
+            "error",
+            "Couldn’t send to PixGrabber",
+            errorMessage
         );
+        setFooterStatus(`Unable to send: ${errorMessage}`, "error");
         checkPixGrabberStatus();
     }
 
@@ -749,6 +873,9 @@
 
     document.getElementById("pixgrabber_clear")
         .addEventListener("click", onClear);
+
+    document.getElementById("pixgrabber_notice_close")
+        .addEventListener("click", clearNotice);
 
     const versionLabel = document.getElementById("pixgrabber_version");
     if (versionLabel) {
