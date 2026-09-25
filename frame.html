@@ -1,38 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
-        <title>To be Injected</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>PixGrabber Thumbnail Picker</title>
         <style>
-            .pixgrabber_holder{
-                border-radius: 40px;
+            :root {
+                color-scheme: light;
+                font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            }
+
+            body {
+                margin: 0;
+                padding: 0 8px 64px;
+                background: #ffffff;
+                color: #30343b;
+            }
+
+            .pixgrabber_toolbar {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-height: 44px;
+                padding: 6px 10px;
+                background: #f4f6f9;
+                border-bottom: 1px solid #d8dde4;
+            }
+
+            .pixgrabber_auto_label {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                font-size: 14px;
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .pixgrabber_auto_label input {
+                width: 16px;
+                height: 16px;
+            }
+
+            .pixgrabber_site {
+                font-weight: 600;
+            }
+
+            .pixgrabber_auto_status {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                color: #59616c;
+                font-size: 12px;
+            }
+
+            .pixgrabber_auto_status.error {
+                color: #be2d2d;
+            }
+
+            .pixgrabber_holder {
+                border-radius: 16px;
                 padding: 10px;
                 position: relative;
-                margin: 10px 10px 10px 10px;
+                margin: 10px;
             }
-            .pixgrabber_overlay{
+
+            .pixgrabber_overlay {
                 position: absolute;
-                left: 0;
-                bottom: 0;
-                right: 0;
-                top: 0;
-                background-color: rgba(22, 83, 163, 0.5);
+                inset: 0;
+                border-radius: 6px;
+                background-color: rgba(22, 83, 163, 0.35);
                 display: none;
+                pointer-events: none;
             }
-            .pixgrabber_holder:hover{
-                opacity: 0.8;
+
+            .pixgrabber_holder:hover {
+                opacity: 0.85;
                 cursor: pointer;
             }
-            .pixgrabber_submit{
+
+            .pixgrabber_holder img {
+                max-height: 180px;
+                width: auto;
+                margin: 3px;
+            }
+
+            .pixgrabber_submit {
                 position: fixed;
-                bottom: 0;
-                right: 0;
-                width: 86px;
-                height: 48px;
-                radius: 10px;
+                bottom: 12px;
+                right: 12px;
+                min-width: 96px;
+                min-height: 40px;
+                border-radius: 6px;
+                border: 1px solid #1e6fe8;
+                background: #1e6fe8;
+                color: #ffffff;
+                font: inherit;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .pixgrabber_empty {
+                margin: 20px;
             }
         </style>
     </head>
     <body>
+        <div class="pixgrabber_toolbar">
+            <label class="pixgrabber_auto_label">
+                <input id="pixgrabber_auto" type="checkbox">
+                <span>
+                    Open automatically on
+                    <span id="pixgrabber_site" class="pixgrabber_site">this site</span>
+                </span>
+            </label>
+            <span id="pixgrabber_auto_status" class="pixgrabber_auto_status"></span>
+        </div>
+
+        <button id="pixgrabber_submit" class="pixgrabber_submit" type="button">
+            Submit
+        </button>
+
+        <script src="frame.js"></script>
     </body>
-    <script src="frame.js"></script>
 </html>
