@@ -10,6 +10,7 @@
         "Unable to connect to PixGrabber. Make sure PixGrabber is running.";
     const ID_IFRAME = "pixgrabber-iframe";
     const EXTENSION_ORIGIN = new URL(chrome.runtime.getURL("/")).origin;
+    const MIN_PICKER_HEIGHT = 52;
 
     function createThumbnailGroups() {
         const groups = [];
@@ -78,6 +79,29 @@
         );
     }
 
+    function resizePicker(height) {
+        const iframe = document.getElementById(ID_IFRAME);
+        if (!iframe) {
+            return;
+        }
+
+        const requested = Number(height);
+        if (!Number.isFinite(requested)) {
+            return;
+        }
+
+        const maxHeight = Math.max(
+            MIN_PICKER_HEIGHT,
+            Math.floor(window.innerHeight * 0.82)
+        );
+        const clamped = Math.min(
+            maxHeight,
+            Math.max(MIN_PICKER_HEIGHT, Math.round(requested))
+        );
+
+        iframe.style.setProperty("height", `${clamped}px`, "important");
+    }
+
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!message || message.type !== "toggle-picker") {
             return false;
@@ -114,6 +138,11 @@
                 },
                 EXTENSION_ORIGIN
             );
+            return;
+        }
+
+        if (message.type === "resize-picker") {
+            resizePicker(message.height);
             return;
         }
 
