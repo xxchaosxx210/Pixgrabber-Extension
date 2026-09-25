@@ -12,6 +12,7 @@
     let minimized = false;
     let lastExpandedHeight = DEFAULT_DRAWER_HEIGHT;
     let lastScrollTop = 0;
+    let expandedGroupIndexes = new Set();
     let scrollSaveTimer = null;
 
     function hostPatterns(hostname) {
@@ -307,7 +308,18 @@
         }
 
         const expanded = div.dataset.expanded === "true";
-        setGroupExpanded(div, !expanded);
+        const nextExpanded = !expanded;
+        setGroupExpanded(div, nextExpanded);
+
+        const groupIndex = Number(div.dataset.groupIndex);
+        if (Number.isInteger(groupIndex) && groupIndex >= 0) {
+            if (nextExpanded) {
+                expandedGroupIndexes.add(groupIndex);
+            } else {
+                expandedGroupIndexes.delete(groupIndex);
+            }
+            saveUiState();
+        }
     }
 
     function renderGroups(json) {
@@ -318,6 +330,7 @@
 
         view.replaceChildren();
         updateAutoState(json.hostname);
+        preparePageState(json.url);
 
         const groups = Array.isArray(json.links) ? json.links : [];
 
@@ -326,17 +339,22 @@
             empty.className = "pixgrabber_empty";
             empty.textContent = "No thumbnail groups found on this page.";
             view.appendChild(empty);
+            expandedGroupIndexes.clear();
+            saveUiState(false);
             updateSelectionSummary();
             setFooterStatus("No thumbnail groups found.");
-            restoreScrollPosition(json.url);
+            restoreScrollPosition();
             return;
         }
 
         groups.forEach((group, index) => {
             const div = document.createElement("section");
+            const shouldExpand = expandedGroupIndexes.has(index);
+
             div.className = DIV_CLASSNAME;
             div.dataset.selected = "false";
-            div.dataset.expanded = "false";
+            div.dataset.groupIndex = String(index);
+            div.dataset.expanded = shouldExpand ? "true" : "false";
 
             const header = document.createElement("div");
             header.className = "pixgrabber_group_header";
@@ -370,8 +388,10 @@
                 const expand = document.createElement("button");
                 expand.className = "pixgrabber_expand_button";
                 expand.type = "button";
-                expand.textContent = `+${count - PREVIEW_IMAGE_LIMIT} more`;
-                expand.setAttribute("aria-expanded", "false");
+                expand.textContent = shouldExpand
+                    ? "Collapse"
+                    : `+${count - PREVIEW_IMAGE_LIMIT} more`;
+                expand.setAttribute("aria-expanded", shouldExpand ? "true" : "false");
                 expand.addEventListener("click", onExpandButton);
                 header.appendChild(expand);
             }
@@ -386,7 +406,7 @@
                 const image = document.createElement("img");
 
                 anchor.href = tags.href;
-                if (imageIndex >= PREVIEW_IMAGE_LIMIT) {
+                if (!shouldExpand && imageIndex >= PREVIEW_IMAGE_LIMIT) {
                     anchor.classList.add("pixgrabber_thumb_hidden");
                 }
 
@@ -407,7 +427,7 @@
         setFooterStatus(
             `${groups.length} ${groups.length === 1 ? "group" : "groups"} found. Select the groups you want to download.`
         );
-        restoreScrollPosition(json.url);
+        restoreScrollPosition();
     }
 
     function handleSubmitResult(message) {
@@ -447,9 +467,9 @@
         }
     }
 
-    async function saveUiState() {
+    async function saveUiState(captureScroll = true) {
         try {
-            if (!minimized) {
+            if (captureScroll && !minimized) {
                 lastScrollTop = Math.max(window.scrollY, 0);
             }
 
@@ -462,7 +482,8 @@
                     height: Math.round(lastExpandedHeight),
                     minimized: minimized,
                     scrollTop: Math.round(lastScrollTop),
-                    pageUrl: savedPageUrl
+                    pageUrl: savedPageUrl,
+                    expandedGroups: Array.from(expandedGroupIndexes).sort((a, b) => a - b)
                 }
             });
         } catch (error) {
@@ -493,6 +514,14 @@
                     typeof state.pageUrl === "string"
                         ? state.pageUrl
                         : "";
+
+                expandedGroupIndexes = new Set(
+                    Array.isArray(state.expandedGroups)
+                        ? state.expandedGroups.filter(
+                            (index) => Number.isInteger(index) && index >= 0
+                        )
+                        : []
+                );
             }
         } catch (error) {
             console.warn("Could not restore PixGrabber drawer state:", error);
@@ -504,15 +533,18 @@
         });
     }
 
-    function restoreScrollPosition(pageUrl) {
+    function preparePageState(pageUrl) {
         currentPageUrl = typeof pageUrl === "string" ? pageUrl : "";
 
         if (!currentPageUrl || currentPageUrl !== savedPageUrl) {
             lastScrollTop = 0;
+            expandedGroupIndexes.clear();
             savedPageUrl = currentPageUrl;
-            saveUiState();
+            saveUiState(false);
         }
+    }
 
+    function restoreScrollPosition() {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 if (!minimized) {
