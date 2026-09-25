@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "description": "Pick and choose groups of thumbnails to download with the PixGrabber desktop application.",
   "manifest_version": 3,
-  "minimum_chrome_version": "88",
+  "minimum_chrome_version": "90",
   "icons": {
     "16": "images/pix16.png",
     "32": "images/pix32.png",
