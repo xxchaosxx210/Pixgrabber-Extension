@@ -1,5 +1,5 @@
 (() => {
-    // content.js is injected each time the toolbar button is clicked.
+    // content.js can be injected manually or registered for an automatic site.
     // Install the listeners once per page, then let later injections return.
     if (globalThis.__PIXGRABBER_CONTENT_LOADED__) {
         return;
@@ -36,11 +36,9 @@
         return groups;
     }
 
-    function togglePicker() {
-        const existing = document.getElementById(ID_IFRAME);
-        if (existing) {
-            existing.remove();
-            return "deleted";
+    function openPicker() {
+        if (document.getElementById(ID_IFRAME)) {
+            return "already-open";
         }
 
         const iframe = document.createElement("iframe");
@@ -53,6 +51,16 @@
         parent.insertBefore(iframe, parent.firstChild);
 
         return "created";
+    }
+
+    function togglePicker() {
+        const existing = document.getElementById(ID_IFRAME);
+        if (existing) {
+            existing.remove();
+            return "deleted";
+        }
+
+        return openPicker();
     }
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -86,7 +94,8 @@
                     source: "pixgrabber-content",
                     type: "groups",
                     links: createThumbnailGroups(),
-                    title: document.title
+                    title: document.title,
+                    hostname: window.location.hostname
                 },
                 EXTENSION_ORIGIN
             );
@@ -122,4 +131,20 @@
             );
         }
     });
+
+    chrome.runtime.sendMessage(
+        {
+            type: "get-auto-site-state",
+            hostname: window.location.hostname
+        },
+        (response) => {
+            if (chrome.runtime.lastError) {
+                return;
+            }
+
+            if (response && response.ok && response.enabled) {
+                openPicker();
+            }
+        }
+    );
 })();
