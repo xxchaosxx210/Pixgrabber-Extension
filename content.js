@@ -1,98 +1,125 @@
-const ERROR_MESSAGE = "Unable to connect to PixGrabber. Make sure you have PixGrabber installed and running. Find it here: https://github.com/xxchaosxx210/wxPixGrabber.git";
+(() => {
+    // content.js is injected each time the toolbar button is clicked.
+    // Install the listeners once per page, then let later injections return.
+    if (globalThis.__PIXGRABBER_CONTENT_LOADED__) {
+        return;
+    }
+    globalThis.__PIXGRABBER_CONTENT_LOADED__ = true;
 
-const ID_IFRAME = "pixgrabber-iframe";
+    const ERROR_MESSAGE =
+        "Unable to connect to PixGrabber. Make sure PixGrabber is running.";
+    const ID_IFRAME = "pixgrabber-iframe";
+    const EXTENSION_ORIGIN = new URL(chrome.runtime.getURL("/")).origin;
 
-function createThumbnailGroups(){
-    group = [];
-    groups = [];
-    for(let element of document.getElementsByTagName("A")){
-        if(element.tagName == "A"){
-            if((element.hasChildNodes()) && element.firstChild.tagName == "IMG"){
-                group.push({"href": element.href, "src": element.firstChild.src});
+    function createThumbnailGroups() {
+        const groups = [];
+        let group = [];
+
+        for (const anchor of document.getElementsByTagName("a")) {
+            const firstChild = anchor.firstElementChild;
+
+            if (firstChild && firstChild.tagName === "IMG") {
+                group.push({
+                    href: anchor.href,
+                    src: firstChild.src
+                });
+            } else if (group.length > 0) {
+                groups.push(group);
+                group = [];
             }
-            else{
-                if(group.length > 0){
-                    groups.push(group);
-                    group = [];
+        }
+
+        if (group.length > 0) {
+            groups.push(group);
+        }
+
+        return groups;
+    }
+
+    function togglePicker() {
+        const existing = document.getElementById(ID_IFRAME);
+        if (existing) {
+            existing.remove();
+            return "deleted";
+        }
+
+        const iframe = document.createElement("iframe");
+        iframe.className = "pixgrabber_frame";
+        iframe.id = ID_IFRAME;
+        iframe.title = "PixGrabber thumbnail picker";
+        iframe.src = chrome.runtime.getURL("frame.html");
+
+        const parent = document.body || document.documentElement;
+        parent.insertBefore(iframe, parent.firstChild);
+
+        return "created";
+    }
+
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (!message || message.type !== "toggle-picker") {
+            return false;
+        }
+
+        sendResponse({status: togglePicker()});
+        return false;
+    });
+
+    window.addEventListener("message", (event) => {
+        const iframe = document.getElementById(ID_IFRAME);
+
+        if (
+            !iframe ||
+            event.source !== iframe.contentWindow ||
+            event.origin !== EXTENSION_ORIGIN
+        ) {
+            return;
+        }
+
+        const message = event.data;
+        if (!message || message.source !== "pixgrabber-frame") {
+            return;
+        }
+
+        if (message.type === "request-groups") {
+            iframe.contentWindow.postMessage(
+                {
+                    source: "pixgrabber-content",
+                    type: "groups",
+                    links: createThumbnailGroups(),
+                    title: document.title
+                },
+                EXTENSION_ORIGIN
+            );
+            return;
+        }
+
+        if (message.type === "submit") {
+            const payload = {
+                links: Array.isArray(message.links) ? message.links : [],
+                title: document.title,
+                url: window.location.href
+            };
+
+            chrome.runtime.sendMessage(
+                {
+                    type: "submit-to-pixgrabber",
+                    payload: payload
+                },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        window.alert(ERROR_MESSAGE);
+                        return;
+                    }
+
+                    if (!response || !response.ok) {
+                        const detail =
+                            response && response.error
+                                ? `\n\n${response.error}`
+                                : "";
+                        window.alert(ERROR_MESSAGE + detail);
+                    }
                 }
-            }
+            );
         }
-    }
-    groups.push(group);
-    return groups;
-}
-
-function getThumbnails(){
-    thumbs = [];
-    for(let atag of document.getElementsByTagName("a")){
-        if((atag.hasChildNodes()) && atag.firstChild.tagName == "IMG"){
-            thumbs.push({"link": atag.href, "img": atag.firstChild.src});
-        }
-    }
-    return thumbs;
-}
-
-
-function sendRequest(jstring){
-    if(jstring){
-        b = btoa(jstring);
-        xhr = new XMLHttpRequest();
-        xhr.timeout = 2000;
-        xhr.open("POST", "http://localhost:5000/set-html", true);
-        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        xhr.addEventListener("load", function(event){
-            if(event.response == 200){
-                console.log("Connected to PixGrabber");
-            }
-        });
-        xhr.addEventListener("error", function(event){
-            window.alert(ERROR_MESSAGE);
-        });
-        xhr.addEventListener("timeout", function(event){
-            window.alert(ERROR_MESSAGE);
-        });
-        xhr.send(b);
-    }
-}
-
-
-chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
-    if(msg.text == "load-frame"){
-        var iframe = document.getElementById(ID_IFRAME);
-        if(!iframe){
-            var iframe = document.createElement("iframe");
-            iframe.className = "pixgrabber_frame";
-            iframe.id = ID_IFRAME;
-            iframe.src = chrome.runtime.getURL("frame.html");
-            let element = document.body.firstChild;
-            document.body.insertBefore(iframe, element);
-            sendResponse({status: "created"});
-        }
-        else{
-            document.body.removeChild(iframe);
-            sendResponse({status: "deleted"});
-        }
-
-    }else if(msg.text == "iframe"){
-        var groups = createThumbnailGroups();
-        sendResponse({links: groups, "title": document.title});
-    }else if(msg.text == "onsubmit"){
-        var jstring = JSON.stringify({"links": msg.links, "title": document.title, "url": window.location.href});
-        sendResponse({"status": "ok"});
-        sendRequest(jstring);
-    }
-});
-
-//DOMContentLoaded
-// window.addEventListener("DOMContentLoaded", function(event){
-//     var extensionOrigin = 'chrome-extension://' + chrome.runtime.id;
-//     if(!location.ancestorOrigins.contains(extensionOrigin)){
-//         //createThumbnailGroups();
-//         var iframe = document.createElement("iframe");
-//         iframe.className = "pixgrabber_frame";
-//         iframe.id = "pixgrabber_frame";
-//         iframe.src = chrome.runtime.getURL("frame.html");
-//         let element = document.body.firstChild;
-//         document.body.insertBefore(iframe, element);
-//     }
-// });
+    });
+})();
