@@ -134,7 +134,8 @@
                     type: "groups",
                     links: createThumbnailGroups(),
                     title: document.title,
-                    hostname: window.location.hostname
+                    hostname: window.location.hostname,
+                    url: window.location.href
                 },
                 EXTENSION_ORIGIN
             );
