@@ -19,7 +19,6 @@
                 --blue-strong: #0f5ac7;
                 --blue-soft: #eef5ff;
                 --danger: #c83c3c;
-                --shadow: 0 14px 36px rgba(22, 34, 51, 0.12);
                 --radius: 14px;
             }
 
@@ -36,7 +35,7 @@
             }
 
             body {
-                padding-bottom: 76px;
+                padding-bottom: 68px;
             }
 
             button,
@@ -48,32 +47,54 @@
                 border: 0;
             }
 
-            .pixgrabber_toolbar {
+            .pixgrabber_resize_handle {
                 position: sticky;
                 top: 0;
-                z-index: 20;
+                z-index: 40;
+                height: 9px;
+                background: #eef3f9;
+                cursor: ns-resize;
+                border-bottom: 1px solid #d6dfeb;
+            }
+
+            .pixgrabber_resize_handle::after {
+                content: "";
+                position: absolute;
+                left: 50%;
+                top: 3px;
+                width: 54px;
+                height: 3px;
+                border-radius: 999px;
+                background: #a9b8cb;
+                transform: translateX(-50%);
+            }
+
+            .pixgrabber_toolbar {
+                position: sticky;
+                top: 9px;
+                z-index: 30;
                 display: flex;
                 align-items: center;
-                gap: 18px;
-                min-height: 68px;
-                padding: 10px 18px;
-                background: rgba(255, 255, 255, 0.98);
+                gap: 16px;
+                min-height: 60px;
+                padding: 8px 16px;
+                background: rgba(255, 255, 255, 0.985);
                 border-bottom: 1px solid var(--line);
-                box-shadow: 0 4px 14px rgba(20, 32, 48, 0.08);
+                box-shadow: 0 4px 14px rgba(20, 32, 48, 0.07);
             }
 
             .pixgrabber_brand {
                 display: flex;
                 align-items: center;
-                gap: 11px;
-                min-width: 190px;
+                gap: 10px;
+                min-width: 176px;
             }
 
             .pixgrabber_brand img {
-                width: 36px;
-                height: 36px;
+                width: 34px;
+                height: 34px;
                 border-radius: 9px;
-                box-shadow: 0 4px 10px rgba(23, 105, 224, 0.22);
+                box-shadow: 0 4px 10px rgba(23, 105, 224, 0.2);
             }
 
             .pixgrabber_brand_text {
@@ -95,6 +116,14 @@
                 font-weight: 600;
             }
 
+            .pixgrabber_minimized_summary {
+                display: none;
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 650;
+                white-space: nowrap;
+            }
+
             .pixgrabber_toolbar_spacer {
                 flex: 1;
             }
@@ -102,18 +131,19 @@
             .pixgrabber_toolbar_actions {
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 9px;
                 min-width: 0;
             }
 
             .pixgrabber_button,
-            .pixgrabber_icon_button {
+            .pixgrabber_icon_button,
+            .pixgrabber_expand_button {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 gap: 7px;
-                min-height: 38px;
-                padding: 0 13px;
+                min-height: 36px;
+                padding: 0 12px;
                 border: 1px solid var(--line-strong);
                 border-radius: 9px;
                 background: var(--panel);
@@ -124,21 +154,23 @@
             }
 
             .pixgrabber_button:hover,
-            .pixgrabber_icon_button:hover {
+            .pixgrabber_icon_button:hover,
+            .pixgrabber_expand_button:hover {
                 background: #f2f6fb;
                 border-color: #b6c4d8;
             }
 
             .pixgrabber_button:active,
-            .pixgrabber_icon_button:active {
+            .pixgrabber_icon_button:active,
+            .pixgrabber_expand_button:active {
                 transform: translateY(1px);
             }
 
             .pixgrabber_icon_button {
-                width: 38px;
+                width: 36px;
                 padding: 0;
-                font-size: 22px;
-                font-weight: 400;
+                font-size: 20px;
+                font-weight: 500;
             }
 
             .pixgrabber_auto_wrap {
@@ -198,7 +230,7 @@
             }
 
             .pixgrabber_auto_status {
-                max-width: 320px;
+                max-width: 330px;
                 margin-top: 2px;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -212,37 +244,37 @@
             }
 
             #pixgrabber_view {
-                padding: 14px 16px 18px;
+                padding: 10px 14px 16px;
             }
 
             .pixgrabber_holder {
                 overflow: hidden;
-                margin: 0 0 12px;
+                margin: 0 0 9px;
                 border: 1px solid var(--line);
                 border-radius: var(--radius);
                 background: var(--panel);
-                box-shadow: 0 5px 16px rgba(26, 39, 56, 0.06);
+                box-shadow: 0 4px 14px rgba(26, 39, 56, 0.055);
                 cursor: pointer;
-                transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease, transform 130ms ease;
+                transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease;
             }
 
             .pixgrabber_holder:hover {
                 border-color: #b9c8dc;
-                box-shadow: 0 7px 20px rgba(26, 39, 56, 0.09);
+                box-shadow: 0 6px 18px rgba(26, 39, 56, 0.08);
             }
 
             .pixgrabber_holder[data-selected="true"] {
                 border-color: var(--blue);
                 background: var(--blue-soft);
-                box-shadow: 0 0 0 1px rgba(23, 105, 224, 0.18), 0 8px 22px rgba(23, 105, 224, 0.11);
+                box-shadow: 0 0 0 1px rgba(23, 105, 224, 0.16), 0 6px 18px rgba(23, 105, 224, 0.09);
             }
 
             .pixgrabber_group_header {
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                min-height: 42px;
-                padding: 8px 12px;
+                gap: 9px;
+                min-height: 38px;
+                padding: 6px 10px;
                 border-bottom: 1px solid var(--line);
                 background: var(--panel-soft);
             }
@@ -284,37 +316,50 @@
                 font-weight: 600;
             }
 
+            .pixgrabber_group_header_spacer {
+                flex: 1;
+            }
+
             .pixgrabber_order_hint {
-                margin-left: auto;
                 color: #768297;
                 font-size: 12px;
                 font-weight: 600;
             }
 
+            .pixgrabber_expand_button {
+                min-height: 30px;
+                padding: 0 10px;
+                font-size: 12px;
+                background: #ffffff;
+            }
+
             .pixgrabber_thumb_strip {
                 display: flex;
+                flex-wrap: wrap;
                 align-items: center;
-                gap: 8px;
-                overflow-x: auto;
-                overscroll-behavior-x: contain;
-                padding: 10px 12px 12px;
-                scrollbar-width: thin;
+                gap: 7px;
+                padding: 8px 10px 10px;
+                overflow: hidden;
             }
 
             .pixgrabber_thumb_strip a {
                 display: block;
                 flex: 0 0 auto;
-                border-radius: 8px;
+                border-radius: 7px;
                 overflow: hidden;
                 background: #e8edf4;
                 box-shadow: inset 0 0 0 1px rgba(20, 32, 48, 0.06);
             }
 
+            .pixgrabber_thumb_strip a.pixgrabber_thumb_hidden {
+                display: none;
+            }
+
             .pixgrabber_thumb_strip img {
                 display: block;
-                height: 138px;
+                height: 104px;
                 width: auto;
-                max-width: 230px;
+                max-width: 176px;
                 object-fit: contain;
                 background: #eef2f7;
                 user-select: none;
@@ -322,9 +367,9 @@
             }
 
             .pixgrabber_empty {
-                margin: 26px auto;
+                margin: 20px auto;
                 max-width: 520px;
-                padding: 24px;
+                padding: 20px;
                 border: 1px dashed var(--line-strong);
                 border-radius: var(--radius);
                 background: var(--panel);
@@ -338,15 +383,15 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                z-index: 30;
+                z-index: 35;
                 display: flex;
                 align-items: center;
                 gap: 14px;
-                min-height: 64px;
-                padding: 9px 16px;
+                min-height: 60px;
+                padding: 8px 14px;
                 background: rgba(255, 255, 255, 0.985);
                 border-top: 1px solid var(--line);
-                box-shadow: 0 -6px 20px rgba(20, 32, 48, 0.08);
+                box-shadow: 0 -5px 18px rgba(20, 32, 48, 0.07);
             }
 
             .pixgrabber_summary {
@@ -383,14 +428,14 @@
             }
 
             .pixgrabber_primary {
-                min-height: 40px;
-                padding: 0 17px;
+                min-height: 38px;
+                padding: 0 16px;
                 border-radius: 9px;
                 background: var(--blue);
                 color: #ffffff;
                 font-weight: 750;
                 cursor: pointer;
-                box-shadow: 0 4px 10px rgba(23, 105, 224, 0.2);
+                box-shadow: 0 4px 10px rgba(23, 105, 224, 0.18);
             }
 
             .pixgrabber_primary:hover {
@@ -403,10 +448,43 @@
                 box-shadow: none;
             }
 
+            body.pixgrabber_minimized {
+                padding-bottom: 0;
+                overflow: hidden;
+                background: #ffffff;
+            }
+
+            body.pixgrabber_minimized .pixgrabber_resize_handle,
+            body.pixgrabber_minimized #pixgrabber_view,
+            body.pixgrabber_minimized .pixgrabber_footer,
+            body.pixgrabber_minimized #pixgrabber_refresh,
+            body.pixgrabber_minimized .pixgrabber_auto_wrap,
+            body.pixgrabber_minimized .pixgrabber_subtitle {
+                display: none;
+            }
+
+            body.pixgrabber_minimized .pixgrabber_toolbar {
+                position: static;
+                min-height: 52px;
+                height: 52px;
+                padding: 6px 12px;
+                border-bottom: 0;
+                box-shadow: none;
+            }
+
+            body.pixgrabber_minimized .pixgrabber_brand img {
+                width: 30px;
+                height: 30px;
+            }
+
+            body.pixgrabber_minimized .pixgrabber_minimized_summary {
+                display: inline;
+            }
+
             @media (max-width: 820px) {
                 .pixgrabber_toolbar {
-                    gap: 10px;
-                    padding: 9px 12px;
+                    gap: 9px;
+                    padding: 8px 10px;
                 }
 
                 .pixgrabber_brand {
@@ -426,11 +504,12 @@
                 }
 
                 .pixgrabber_thumb_strip img {
-                    height: 118px;
+                    height: 92px;
+                    max-width: 150px;
                 }
 
                 .pixgrabber_footer {
-                    padding: 8px 12px;
+                    padding: 7px 10px;
                 }
 
                 .pixgrabber_summary_status {
@@ -440,6 +519,13 @@
         </style>
     </head>
     <body>
+        <div
+            id="pixgrabber_resize_handle"
+            class="pixgrabber_resize_handle"
+            title="Drag to resize PixGrabber"
+            aria-label="Drag to resize PixGrabber"
+        ></div>
+
         <header class="pixgrabber_toolbar">
             <div class="pixgrabber_brand">
                 <img src="images/pix32.png" alt="">
@@ -448,6 +534,10 @@
                     <span class="pixgrabber_subtitle">Group picker</span>
                 </div>
             </div>
+
+            <span id="pixgrabber_minimized_summary" class="pixgrabber_minimized_summary">
+                0 groups selected
+            </span>
 
             <div class="pixgrabber_toolbar_spacer"></div>
 
@@ -467,6 +557,14 @@
                     </label>
                     <span id="pixgrabber_auto_status" class="pixgrabber_auto_status"></span>
                 </div>
+
+                <button
+                    id="pixgrabber_minimize"
+                    class="pixgrabber_icon_button"
+                    type="button"
+                    title="Minimise PixGrabber"
+                    aria-label="Minimise PixGrabber"
+                >−</button>
 
                 <button
                     id="pixgrabber_close"
