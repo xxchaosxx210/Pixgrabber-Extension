@@ -27,26 +27,38 @@ if errorlevel 1 (
     exit /b 1
 )
 
+for /f "delims=" %%B in ('git branch --show-current') do set "BRANCH=%%B"
+
+if not defined BRANCH (
+    echo ERROR: Git is in detached HEAD state.
+    echo Switch to a branch before running this updater.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo Current branch: %BRANCH%
+echo.
 echo Fetching latest code...
 git fetch origin
 if errorlevel 1 goto :error
 
-git show-ref --verify --quiet refs/heads/chrome-mv3
+git ls-remote --exit-code --heads origin "%BRANCH%" >nul 2>&1
 if errorlevel 1 (
-    echo Creating local chrome-mv3 branch...
-    git switch -c chrome-mv3 --track origin/chrome-mv3
-) else (
-    echo Switching to chrome-mv3...
-    git switch chrome-mv3
+    echo.
+    echo ERROR: The branch "%BRANCH%" does not exist on origin.
+    echo Push the branch first, or switch to a tracked remote branch.
+    echo.
+    pause
+    exit /b 1
 )
-if errorlevel 1 goto :error
 
-echo Pulling latest changes...
-git pull --ff-only origin chrome-mv3
+echo Pulling latest changes for %BRANCH%...
+git pull --ff-only origin "%BRANCH%"
 if errorlevel 1 goto :error
 
 echo.
-echo Update complete.
+echo Update complete on branch: %BRANCH%
 echo.
 echo If Chrome is using this as an unpacked extension:
 echo   1. Open chrome://extensions
