@@ -1,9 +1,5 @@
 (() => {
     const DIV_CLASSNAME = "pixgrabber_holder";
-    const OVERLAY_CLASSNAME = "pixgrabber_overlay";
-
-    const STYLE_SELECTED_ON = "10px solid #0033cc";
-    const STYLE_SELECTED_OFF = "10px solid #324d88";
 
     let currentHostname = "";
 
@@ -22,6 +18,17 @@
 
         status.textContent = text;
         status.classList.toggle("error", isError);
+    }
+
+    function setFooterStatus(text, state = "") {
+        const status = document.getElementById("pixgrabber_status");
+        if (!status) {
+            return;
+        }
+
+        status.textContent = text;
+        status.classList.toggle("success", state === "success");
+        status.classList.toggle("error", state === "error");
     }
 
     function updateAutoState(hostname) {
@@ -116,21 +123,56 @@
         }
     }
 
+    function setGroupSelected(div, selected) {
+        div.dataset.selected = selected ? "true" : "false";
+
+        const checkbox = div.querySelector(".pixgrabber_group_check");
+        if (checkbox) {
+            checkbox.setAttribute("aria-checked", selected ? "true" : "false");
+        }
+    }
+
+    function updateSelectionSummary() {
+        let selectedGroups = 0;
+        let selectedImages = 0;
+
+        for (const div of document.getElementsByClassName(DIV_CLASSNAME)) {
+            if (div.dataset.selected !== "true") {
+                continue;
+            }
+
+            selectedGroups += 1;
+            selectedImages += div.getElementsByTagName("a").length;
+        }
+
+        const groupWord = selectedGroups === 1 ? "group" : "groups";
+        const imageWord = selectedImages === 1 ? "image" : "images";
+        const summary = document.getElementById("pixgrabber_summary");
+        const submit = document.getElementById("pixgrabber_submit");
+
+        if (summary) {
+            summary.textContent =
+                `${selectedGroups} ${groupWord} · ${selectedImages} ${imageWord} selected`;
+        }
+
+        if (submit) {
+            submit.disabled = selectedImages === 0;
+        }
+    }
+
     function onDivClick(event) {
         const div = event.currentTarget;
         const selected = div.dataset.selected === "true";
-        div.dataset.selected = selected ? "false" : "true";
-        div.style.border = selected ? STYLE_SELECTED_OFF : STYLE_SELECTED_ON;
-
-        const overlay = div.getElementsByClassName(OVERLAY_CLASSNAME)[0];
-        if (overlay) {
-            overlay.style.display = selected ? "none" : "block";
-        }
+        setGroupSelected(div, !selected);
+        updateSelectionSummary();
+        setFooterStatus("Selection updated.");
     }
 
     function getSelected() {
         const selected = [];
 
+        // Keep the current DOM traversal order. This deliberately preserves
+        // group order and image order exactly as rendered from the webpage.
         for (const div of document.getElementsByClassName(DIV_CLASSNAME)) {
             if (div.dataset.selected !== "true") {
                 continue;
@@ -151,42 +193,124 @@
     }
 
     function onSubmitButton() {
+        const selected = getSelected();
+        if (selected.length === 0) {
+            return;
+        }
+
+        const submit = document.getElementById("pixgrabber_submit");
+        if (submit) {
+            submit.disabled = true;
+            submit.textContent = "Sending…";
+        }
+
+        setFooterStatus("Sending selected images to PixGrabber…");
+
         window.parent.postMessage(
             {
                 source: "pixgrabber-frame",
                 type: "submit",
-                links: getSelected()
+                links: selected
             },
             "*"
         );
     }
 
+    function requestGroups() {
+        setFooterStatus("Scanning this page for thumbnail groups…");
+        window.parent.postMessage(
+            {
+                source: "pixgrabber-frame",
+                type: "request-groups"
+            },
+            "*"
+        );
+    }
+
+    function onRefreshButton() {
+        requestGroups();
+    }
+
+    function onCloseButton() {
+        window.parent.postMessage(
+            {
+                source: "pixgrabber-frame",
+                type: "close-picker"
+            },
+            "*"
+        );
+    }
+
+    function onSelectAll() {
+        for (const div of document.getElementsByClassName(DIV_CLASSNAME)) {
+            setGroupSelected(div, true);
+        }
+        updateSelectionSummary();
+        setFooterStatus("All groups selected.");
+    }
+
+    function onClear() {
+        for (const div of document.getElementsByClassName(DIV_CLASSNAME)) {
+            setGroupSelected(div, false);
+        }
+        updateSelectionSummary();
+        setFooterStatus("Selection cleared.");
+    }
+
     function renderGroups(json) {
-        const existing = document.getElementById("pixgrabber_view");
-        if (existing) {
-            existing.remove();
+        const view = document.getElementById("pixgrabber_view");
+        if (!view) {
+            return;
         }
 
+        view.replaceChildren();
         updateAutoState(json.hostname);
-
-        const view = document.createElement("div");
-        view.id = "pixgrabber_view";
-        document.body.appendChild(view);
 
         const groups = Array.isArray(json.links) ? json.links : [];
 
         if (groups.length === 0) {
-            const empty = document.createElement("p");
+            const empty = document.createElement("div");
             empty.className = "pixgrabber_empty";
             empty.textContent = "No thumbnail groups found on this page.";
             view.appendChild(empty);
+            updateSelectionSummary();
+            setFooterStatus("No thumbnail groups found.");
+            return;
         }
 
-        for (const group of groups) {
-            const div = document.createElement("div");
+        groups.forEach((group, index) => {
+            const div = document.createElement("section");
             div.className = DIV_CLASSNAME;
-            div.style.border = STYLE_SELECTED_OFF;
             div.dataset.selected = "false";
+
+            const header = document.createElement("div");
+            header.className = "pixgrabber_group_header";
+
+            const check = document.createElement("span");
+            check.className = "pixgrabber_group_check";
+            check.textContent = "✓";
+            check.setAttribute("role", "checkbox");
+            check.setAttribute("aria-checked", "false");
+            check.setAttribute("aria-label", `Select group ${index + 1}`);
+
+            const title = document.createElement("span");
+            title.className = "pixgrabber_group_title";
+            title.textContent = `Group ${index + 1}`;
+
+            const meta = document.createElement("span");
+            meta.className = "pixgrabber_group_meta";
+            const count = Array.isArray(group) ? group.length : 0;
+            meta.textContent = `· ${count} ${count === 1 ? "image" : "images"}`;
+
+            const orderHint = document.createElement("span");
+            orderHint.className = "pixgrabber_order_hint";
+            orderHint.textContent = "In page order";
+
+            header.append(check, title, meta, orderHint);
+            div.appendChild(header);
+
+            const strip = document.createElement("div");
+            strip.className = "pixgrabber_thumb_strip";
 
             for (const tags of group) {
                 const anchor = document.createElement("a");
@@ -195,18 +319,43 @@
                 anchor.href = tags.href;
                 image.src = tags.src;
                 image.alt = "";
+                image.loading = "lazy";
                 anchor.appendChild(image);
                 anchor.addEventListener("click", (event) => event.preventDefault());
-                div.appendChild(anchor);
+                strip.appendChild(anchor);
             }
 
-            const overlay = document.createElement("div");
-            overlay.className = OVERLAY_CLASSNAME;
-            div.appendChild(overlay);
-
+            div.appendChild(strip);
             div.addEventListener("click", onDivClick, false);
             view.appendChild(div);
+        });
+
+        updateSelectionSummary();
+        setFooterStatus(
+            `${groups.length} ${groups.length === 1 ? "group" : "groups"} found. Select the groups you want to download.`
+        );
+    }
+
+    function handleSubmitResult(message) {
+        const submit = document.getElementById("pixgrabber_submit");
+
+        if (submit) {
+            submit.textContent = "Send to PixGrabber";
         }
+
+        updateSelectionSummary();
+
+        if (message.ok) {
+            setFooterStatus("Sent to PixGrabber ✓", "success");
+            return;
+        }
+
+        setFooterStatus(
+            message.error
+                ? `Unable to send: ${message.error}`
+                : "Unable to connect to PixGrabber.",
+            "error"
+        );
     }
 
     window.addEventListener("message", (event) => {
@@ -215,15 +364,18 @@
         }
 
         const message = event.data;
-        if (
-            !message ||
-            message.source !== "pixgrabber-content" ||
-            message.type !== "groups"
-        ) {
+        if (!message || message.source !== "pixgrabber-content") {
             return;
         }
 
-        renderGroups(message);
+        if (message.type === "groups") {
+            renderGroups(message);
+            return;
+        }
+
+        if (message.type === "submit-result") {
+            handleSubmitResult(message);
+        }
     });
 
     document.getElementById("pixgrabber_auto")
@@ -232,11 +384,17 @@
     document.getElementById("pixgrabber_submit")
         .addEventListener("click", onSubmitButton);
 
-    window.parent.postMessage(
-        {
-            source: "pixgrabber-frame",
-            type: "request-groups"
-        },
-        "*"
-    );
+    document.getElementById("pixgrabber_refresh")
+        .addEventListener("click", onRefreshButton);
+
+    document.getElementById("pixgrabber_close")
+        .addEventListener("click", onCloseButton);
+
+    document.getElementById("pixgrabber_select_all")
+        .addEventListener("click", onSelectAll);
+
+    document.getElementById("pixgrabber_clear")
+        .addEventListener("click", onClear);
+
+    requestGroups();
 })();
