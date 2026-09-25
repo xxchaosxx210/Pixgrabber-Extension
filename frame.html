@@ -463,6 +463,51 @@
                 color: var(--danger);
             }
 
+            .pixgrabber_connection {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                min-height: 30px;
+                padding: 0 10px;
+                border: 1px solid var(--line);
+                border-radius: 999px;
+                background: var(--panel-soft);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .pixgrabber_connection_dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #94a3b8;
+                box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.14);
+            }
+
+            .pixgrabber_connection.connected {
+                border-color: #b7dec7;
+                background: #f0faf4;
+                color: #207044;
+            }
+
+            .pixgrabber_connection.connected .pixgrabber_connection_dot {
+                background: #2f9e62;
+                box-shadow: 0 0 0 3px rgba(47, 158, 98, 0.14);
+            }
+
+            .pixgrabber_connection.disconnected {
+                border-color: #ebc2c2;
+                background: #fff6f6;
+                color: #a12f2f;
+            }
+
+            .pixgrabber_connection.disconnected .pixgrabber_connection_dot {
+                background: #d64545;
+                box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.14);
+            }
+
             .pixgrabber_footer_spacer {
                 flex: 1;
             }
@@ -561,6 +606,14 @@
                 .pixgrabber_summary_status {
                     display: none;
                 }
+
+                .pixgrabber_connection {
+                    padding: 0 8px;
+                }
+
+                #pixgrabber_connection_text {
+                    display: none;
+                }
             }
         </style>
     </head>
@@ -635,6 +688,16 @@
             </div>
 
             <div class="pixgrabber_footer_spacer"></div>
+
+            <div
+                id="pixgrabber_connection"
+                class="pixgrabber_connection"
+                role="status"
+                aria-live="polite"
+            >
+                <span class="pixgrabber_connection_dot" aria-hidden="true"></span>
+                <span id="pixgrabber_connection_text">Checking PixGrabber…</span>
+            </div>
 
             <div class="pixgrabber_footer_actions">
                 <button id="pixgrabber_clear" class="pixgrabber_button" type="button">
