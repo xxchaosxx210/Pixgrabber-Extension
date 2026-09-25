@@ -63,6 +63,21 @@
         return openPicker();
     }
 
+    function sendPickerMessage(message) {
+        const iframe = document.getElementById(ID_IFRAME);
+        if (!iframe || !iframe.contentWindow) {
+            return;
+        }
+
+        iframe.contentWindow.postMessage(
+            {
+                source: "pixgrabber-content",
+                ...message
+            },
+            EXTENSION_ORIGIN
+        );
+    }
+
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!message || message.type !== "toggle-picker") {
             return false;
@@ -102,6 +117,11 @@
             return;
         }
 
+        if (message.type === "close-picker") {
+            iframe.remove();
+            return;
+        }
+
         if (message.type === "submit") {
             const payload = {
                 links: Array.isArray(message.links) ? message.links : [],
@@ -116,17 +136,30 @@
                 },
                 (response) => {
                     if (chrome.runtime.lastError) {
-                        window.alert(ERROR_MESSAGE);
+                        sendPickerMessage({
+                            type: "submit-result",
+                            ok: false,
+                            error: ERROR_MESSAGE
+                        });
                         return;
                     }
 
                     if (!response || !response.ok) {
-                        const detail =
-                            response && response.error
-                                ? `\n\n${response.error}`
-                                : "";
-                        window.alert(ERROR_MESSAGE + detail);
+                        sendPickerMessage({
+                            type: "submit-result",
+                            ok: false,
+                            error:
+                                response && response.error
+                                    ? response.error
+                                    : ERROR_MESSAGE
+                        });
+                        return;
                     }
+
+                    sendPickerMessage({
+                        type: "submit-result",
+                        ok: true
+                    });
                 }
             );
         }
