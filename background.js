@@ -1,4 +1,5 @@
 const PIXGRABBER_ENDPOINT = "http://localhost:5000/set-html";
+const PIXGRABBER_STATUS_ENDPOINT = "http://localhost:5000/status";
 const AUTO_SITES_KEY = "autoSites";
 const AUTO_SCRIPT_PREFIX = "pixgrabber_auto_";
 
@@ -139,6 +140,42 @@ async function syncAutoSites() {
     }
 }
 
+async function getPixGrabberStatus() {
+    try {
+        const response = await fetch(PIXGRABBER_STATUS_ENDPOINT, {
+            method: "GET",
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            return {
+                ok: false,
+                running: false,
+                error: `PixGrabber returned HTTP ${response.status}`
+            };
+        }
+
+        const data = await response.json();
+        const running = Boolean(
+            data &&
+            data.status === "ok" &&
+            data.app === "PixGrabber"
+        );
+
+        return {
+            ok: running,
+            running: running,
+            error: running ? "" : "Unexpected response from localhost:5000"
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            running: false,
+            error: error && error.message ? error.message : String(error)
+        };
+    }
+}
+
 async function sendToPixGrabber(payload) {
     const response = await fetch(PIXGRABBER_ENDPOINT, {
         method: "POST",
@@ -186,6 +223,17 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) {
         return false;
+    }
+
+    if (message.type === "get-pixgrabber-status") {
+        getPixGrabberStatus()
+            .then((status) => sendResponse(status))
+            .catch((error) => sendResponse({
+                ok: false,
+                running: false,
+                error: error && error.message ? error.message : String(error)
+            }));
+        return true;
     }
 
     if (message.type === "submit-to-pixgrabber") {
