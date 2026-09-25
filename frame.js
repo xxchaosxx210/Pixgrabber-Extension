@@ -7,8 +7,12 @@
     const UI_STATE_KEY = "pickerUiState";
 
     let currentHostname = "";
+    let currentPageUrl = "";
+    let savedPageUrl = "";
     let minimized = false;
     let lastExpandedHeight = DEFAULT_DRAWER_HEIGHT;
+    let lastScrollTop = 0;
+    let scrollSaveTimer = null;
 
     function hostPatterns(hostname) {
         return [
@@ -239,10 +243,17 @@
     }
 
     function onRefreshButton() {
+        if (!minimized) {
+            lastScrollTop = Math.max(window.scrollY, 0);
+        }
         requestGroups();
     }
 
-    function onCloseButton() {
+    async function onCloseButton() {
+        if (!minimized) {
+            lastScrollTop = Math.max(window.scrollY, 0);
+        }
+        await saveUiState();
         postToParent("close-picker");
     }
 
@@ -317,6 +328,7 @@
             view.appendChild(empty);
             updateSelectionSummary();
             setFooterStatus("No thumbnail groups found.");
+            restoreScrollPosition(json.url);
             return;
         }
 
@@ -395,6 +407,7 @@
         setFooterStatus(
             `${groups.length} ${groups.length === 1 ? "group" : "groups"} found. Select the groups you want to download.`
         );
+        restoreScrollPosition(json.url);
     }
 
     function handleSubmitResult(message) {
@@ -436,10 +449,20 @@
 
     async function saveUiState() {
         try {
+            if (!minimized) {
+                lastScrollTop = Math.max(window.scrollY, 0);
+            }
+
+            if (currentPageUrl) {
+                savedPageUrl = currentPageUrl;
+            }
+
             await chrome.storage.local.set({
                 [UI_STATE_KEY]: {
                     height: Math.round(lastExpandedHeight),
-                    minimized: minimized
+                    minimized: minimized,
+                    scrollTop: Math.round(lastScrollTop),
+                    pageUrl: savedPageUrl
                 }
             });
         } catch (error) {
@@ -460,6 +483,16 @@
                 }
 
                 minimized = Boolean(state.minimized);
+
+                const savedScrollTop = Number(state.scrollTop);
+                if (Number.isFinite(savedScrollTop) && savedScrollTop >= 0) {
+                    lastScrollTop = Math.round(savedScrollTop);
+                }
+
+                savedPageUrl =
+                    typeof state.pageUrl === "string"
+                        ? state.pageUrl
+                        : "";
             }
         } catch (error) {
             console.warn("Could not restore PixGrabber drawer state:", error);
@@ -471,7 +504,59 @@
         });
     }
 
+    function restoreScrollPosition(pageUrl) {
+        currentPageUrl = typeof pageUrl === "string" ? pageUrl : "";
+
+        if (!currentPageUrl || currentPageUrl !== savedPageUrl) {
+            lastScrollTop = 0;
+            savedPageUrl = currentPageUrl;
+            saveUiState();
+        }
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (!minimized) {
+                    window.scrollTo(0, lastScrollTop);
+                }
+            });
+        });
+    }
+
+    function setupScrollPersistence() {
+        window.addEventListener(
+            "scroll",
+            () => {
+                if (minimized) {
+                    return;
+                }
+
+                lastScrollTop = Math.max(window.scrollY, 0);
+
+                if (scrollSaveTimer !== null) {
+                    clearTimeout(scrollSaveTimer);
+                }
+
+                scrollSaveTimer = setTimeout(() => {
+                    scrollSaveTimer = null;
+                    saveUiState();
+                }, 150);
+            },
+            {passive: true}
+        );
+
+        window.addEventListener("pagehide", () => {
+            if (!minimized) {
+                lastScrollTop = Math.max(window.scrollY, 0);
+            }
+            saveUiState();
+        });
+    }
+
     function setMinimized(nextMinimized) {
+        if (nextMinimized && !minimized) {
+            lastScrollTop = Math.max(window.scrollY, 0);
+        }
+
         minimized = nextMinimized;
 
         if (minimized) {
@@ -483,6 +568,12 @@
         postToParent("resize-picker", {
             height: minimized ? MINIMIZED_HEIGHT : lastExpandedHeight
         });
+
+        if (!minimized) {
+            requestAnimationFrame(() => {
+                window.scrollTo(0, lastScrollTop);
+            });
+        }
 
         saveUiState();
     }
@@ -581,6 +672,7 @@
     }
 
     setupResizeHandle();
+    setupScrollPersistence();
     restoreUiState().finally(() => {
         requestGroups();
     });
