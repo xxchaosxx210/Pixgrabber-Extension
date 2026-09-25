@@ -1,9 +1,9 @@
 {
   "name": "Pix Thumbnail Grabber",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Pick and choose groups of thumbnails to download with the PixGrabber desktop application.",
   "manifest_version": 3,
-  "minimum_chrome_version": "90",
+  "minimum_chrome_version": "96",
   "icons": {
     "16": "images/pix16.png",
     "32": "images/pix32.png",
@@ -13,10 +13,15 @@
   "author": "Paul Millar",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "http://localhost:5000/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"
