@@ -6,6 +6,7 @@
     const MINIMIZED_HEIGHT = 52;
     const UI_STATE_KEY = "pickerUiState";
     const NOTICE_HIDE_MS = 3200;
+    const THUMBNAIL_SIZES = new Set(["small", "medium", "large"]);
 
     let currentHostname = "";
     let currentPageUrl = "";
@@ -16,6 +17,7 @@
     let expandedGroupIndexes = new Set();
     let scrollSaveTimer = null;
     let noticeTimer = null;
+    let thumbnailSize = "medium";
 
     function hostPatterns(hostname) {
         return [
@@ -54,6 +56,33 @@
         status.textContent = text;
         status.classList.toggle("success", state === "success");
         status.classList.toggle("error", state === "error");
+    }
+
+    function applyThumbnailSize(size, save = true) {
+        thumbnailSize = THUMBNAIL_SIZES.has(size) ? size : "medium";
+        document.body.dataset.thumbnailSize = thumbnailSize;
+
+        for (const button of document.querySelectorAll(".pixgrabber_size_button")) {
+            const active = button.dataset.size === thumbnailSize;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", active ? "true" : "false");
+        }
+
+        if (save) {
+            saveUiState(false);
+        }
+    }
+
+    function onThumbnailSizeClick(event) {
+        const size = event.currentTarget.dataset.size;
+        if (!THUMBNAIL_SIZES.has(size)) {
+            return;
+        }
+
+        applyThumbnailSize(size);
+        setFooterStatus(
+            `Thumbnail size: ${size.charAt(0).toUpperCase() + size.slice(1)}.`
+        );
     }
 
     function clearNotice() {
@@ -659,7 +688,8 @@
                     minimized: minimized,
                     scrollTop: Math.round(lastScrollTop),
                     pageUrl: savedPageUrl,
-                    expandedGroups: Array.from(expandedGroupIndexes).sort((a, b) => a - b)
+                    expandedGroups: Array.from(expandedGroupIndexes).sort((a, b) => a - b),
+                    thumbnailSize: thumbnailSize
                 }
             });
         } catch (error) {
@@ -698,11 +728,16 @@
                         )
                         : []
                 );
+
+                if (THUMBNAIL_SIZES.has(state.thumbnailSize)) {
+                    thumbnailSize = state.thumbnailSize;
+                }
             }
         } catch (error) {
             console.warn("Could not restore PixGrabber drawer state:", error);
         }
 
+        applyThumbnailSize(thumbnailSize, false);
         updateMinimizeUi();
         postToParent("resize-picker", {
             height: minimized ? MINIMIZED_HEIGHT : lastExpandedHeight
@@ -876,6 +911,10 @@
 
     document.getElementById("pixgrabber_notice_close")
         .addEventListener("click", clearNotice);
+
+    for (const button of document.querySelectorAll(".pixgrabber_size_button")) {
+        button.addEventListener("click", onThumbnailSizeClick);
+    }
 
     const versionLabel = document.getElementById("pixgrabber_version");
     if (versionLabel) {
