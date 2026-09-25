@@ -459,11 +459,11 @@
             event.preventDefault();
             handle.setPointerCapture(event.pointerId);
 
-            const startY = event.clientY;
+            const startY = event.screenY;
             const startHeight = window.innerHeight;
 
             const onMove = (moveEvent) => {
-                const delta = startY - moveEvent.clientY;
+                const delta = startY - moveEvent.screenY;
                 const height = Math.max(MIN_DRAWER_HEIGHT, startHeight + delta);
                 lastExpandedHeight = height;
                 postToParent("resize-picker", {height: height});
