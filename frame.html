@@ -1,38 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
-        <title>To be Injected</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>PixGrabber Thumbnail Picker</title>
         <style>
-            .pixgrabber_holder{
-                border-radius: 40px;
+            body {
+                margin: 0;
+                padding: 8px 8px 64px;
+                font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+                background: #ffffff;
+            }
+
+            .pixgrabber_holder {
+                border-radius: 16px;
                 padding: 10px;
                 position: relative;
-                margin: 10px 10px 10px 10px;
+                margin: 10px;
             }
-            .pixgrabber_overlay{
+
+            .pixgrabber_overlay {
                 position: absolute;
-                left: 0;
-                bottom: 0;
-                right: 0;
-                top: 0;
-                background-color: rgba(22, 83, 163, 0.5);
+                inset: 0;
+                border-radius: 6px;
+                background-color: rgba(22, 83, 163, 0.35);
                 display: none;
+                pointer-events: none;
             }
-            .pixgrabber_holder:hover{
-                opacity: 0.8;
+
+            .pixgrabber_holder:hover {
+                opacity: 0.85;
                 cursor: pointer;
             }
-            .pixgrabber_submit{
+
+            .pixgrabber_holder img {
+                max-height: 180px;
+                width: auto;
+                margin: 3px;
+            }
+
+            .pixgrabber_submit {
                 position: fixed;
-                bottom: 0;
-                right: 0;
-                width: 86px;
-                height: 48px;
-                radius: 10px;
+                bottom: 12px;
+                right: 12px;
+                min-width: 96px;
+                min-height: 40px;
+                border-radius: 6px;
+                border: 1px solid #1e6fe8;
+                background: #1e6fe8;
+                color: #ffffff;
+                font: inherit;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .pixgrabber_empty {
+                margin: 20px;
             }
         </style>
     </head>
     <body>
+        <script src="frame.js"></script>
     </body>
-    <script src="frame.js"></script>
 </html>
