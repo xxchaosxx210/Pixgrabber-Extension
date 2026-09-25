@@ -4,6 +4,7 @@
     const DEFAULT_DRAWER_HEIGHT = 340;
     const MIN_DRAWER_HEIGHT = 220;
     const MINIMIZED_HEIGHT = 52;
+    const UI_STATE_KEY = "pickerUiState";
 
     let currentHostname = "";
     let minimized = false;
@@ -418,8 +419,7 @@
         );
     }
 
-    function setMinimized(nextMinimized) {
-        minimized = nextMinimized;
+    function updateMinimizeUi() {
         const button = document.getElementById("pixgrabber_minimize");
 
         document.body.classList.toggle("pixgrabber_minimized", minimized);
@@ -432,13 +432,59 @@
                 minimized ? "Restore PixGrabber" : "Minimise PixGrabber"
             );
         }
+    }
+
+    async function saveUiState() {
+        try {
+            await chrome.storage.local.set({
+                [UI_STATE_KEY]: {
+                    height: Math.round(lastExpandedHeight),
+                    minimized: minimized
+                }
+            });
+        } catch (error) {
+            console.warn("Could not save PixGrabber drawer state:", error);
+        }
+    }
+
+    async function restoreUiState() {
+        try {
+            const stored = await chrome.storage.local.get(UI_STATE_KEY);
+            const state = stored[UI_STATE_KEY];
+
+            if (state && typeof state === "object") {
+                const savedHeight = Number(state.height);
+
+                if (Number.isFinite(savedHeight) && savedHeight >= MIN_DRAWER_HEIGHT) {
+                    lastExpandedHeight = Math.round(savedHeight);
+                }
+
+                minimized = Boolean(state.minimized);
+            }
+        } catch (error) {
+            console.warn("Could not restore PixGrabber drawer state:", error);
+        }
+
+        updateMinimizeUi();
+        postToParent("resize-picker", {
+            height: minimized ? MINIMIZED_HEIGHT : lastExpandedHeight
+        });
+    }
+
+    function setMinimized(nextMinimized) {
+        minimized = nextMinimized;
 
         if (minimized) {
             lastExpandedHeight = Math.max(window.innerHeight, MIN_DRAWER_HEIGHT);
-            postToParent("resize-picker", {height: MINIMIZED_HEIGHT});
-        } else {
-            postToParent("resize-picker", {height: lastExpandedHeight});
         }
+
+        updateMinimizeUi();
+
+        postToParent("resize-picker", {
+            height: minimized ? MINIMIZED_HEIGHT : lastExpandedHeight
+        });
+
+        saveUiState();
     }
 
     function onMinimizeButton() {
@@ -479,6 +525,7 @@
                 handle.removeEventListener("pointermove", onMove);
                 handle.removeEventListener("pointerup", onUp);
                 handle.removeEventListener("pointercancel", onUp);
+                saveUiState();
             };
 
             handle.addEventListener("pointermove", onMove);
@@ -534,5 +581,7 @@
     }
 
     setupResizeHandle();
-    requestGroups();
+    restoreUiState().finally(() => {
+        requestGroups();
+    });
 })();
