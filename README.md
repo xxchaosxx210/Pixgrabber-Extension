@@ -37,3 +37,12 @@ Version 0.2 migrates the original Manifest V2 extension to Manifest V3:
 - deprecated tab CSS injection -> `chrome.scripting`
 - page access is granted only when the toolbar action is used via `activeTab`
 - localhost communication is performed by the extension service worker
+
+
+## Automatic sites
+
+Open the PixGrabber picker manually on a site and use **Open automatically on this site**.
+
+When enabled, Chrome asks for access to that specific host and PixGrabber registers its helper for that host. Future visits to the same host open the picker automatically.
+
+Untick the checkbox to disable automatic loading for that host and remove the optional host permission.
