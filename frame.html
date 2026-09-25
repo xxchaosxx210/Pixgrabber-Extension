@@ -135,6 +135,65 @@
                 min-width: 0;
             }
 
+            .pixgrabber_thumb_size_wrap {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                white-space: nowrap;
+            }
+
+            .pixgrabber_thumb_size_label {
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 650;
+            }
+
+            .pixgrabber_thumb_size {
+                display: inline-flex;
+                overflow: hidden;
+                border: 1px solid var(--line-strong);
+                border-radius: 9px;
+                background: var(--panel);
+            }
+
+            .pixgrabber_size_button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 30px;
+                min-height: 34px;
+                padding: 0 8px;
+                border-left: 1px solid var(--line);
+                background: transparent;
+                color: #56657a;
+                font-size: 12px;
+                font-weight: 750;
+                cursor: pointer;
+                transition: background 120ms ease, color 120ms ease;
+            }
+
+            .pixgrabber_size_button:first-child {
+                border-left: 0;
+            }
+
+            .pixgrabber_size_button:hover {
+                background: #f2f6fb;
+                color: var(--text);
+            }
+
+            .pixgrabber_size_button.active {
+                background: var(--blue-soft);
+                color: var(--blue-strong);
+                box-shadow: inset 0 0 0 1px rgba(23, 105, 224, 0.14);
+            }
+
+            .pixgrabber_size_button:focus-visible {
+                position: relative;
+                z-index: 1;
+                outline: 3px solid rgba(23, 105, 224, 0.24);
+                outline-offset: -2px;
+            }
+
             .pixgrabber_button,
             .pixgrabber_icon_button,
             .pixgrabber_expand_button {
@@ -410,6 +469,22 @@
                 background: #eef2f7;
                 user-select: none;
                 -webkit-user-drag: none;
+                transition: height 120ms ease, max-width 120ms ease;
+            }
+
+            body[data-thumbnail-size="small"] .pixgrabber_thumb_strip img {
+                height: 72px;
+                max-width: 122px;
+            }
+
+            body[data-thumbnail-size="medium"] .pixgrabber_thumb_strip img {
+                height: 104px;
+                max-width: 176px;
+            }
+
+            body[data-thumbnail-size="large"] .pixgrabber_thumb_strip img {
+                height: 140px;
+                max-width: 236px;
             }
 
             [hidden] {
@@ -719,6 +794,7 @@
             body.pixgrabber_minimized #pixgrabber_notice,
             body.pixgrabber_minimized .pixgrabber_footer,
             body.pixgrabber_minimized #pixgrabber_refresh,
+            body.pixgrabber_minimized .pixgrabber_thumb_size_wrap,
             body.pixgrabber_minimized .pixgrabber_auto_wrap,
             body.pixgrabber_minimized .pixgrabber_subtitle {
                 display: none;
@@ -754,7 +830,8 @@
 
                 .pixgrabber_subtitle,
                 .pixgrabber_auto_status,
-                .pixgrabber_order_hint {
+                .pixgrabber_order_hint,
+                .pixgrabber_thumb_size_label {
                     display: none;
                 }
 
@@ -762,11 +839,6 @@
                     max-width: 150px;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                }
-
-                .pixgrabber_thumb_strip img {
-                    height: 92px;
-                    max-width: 150px;
                 }
 
                 .pixgrabber_footer {
@@ -800,7 +872,7 @@
                 <img src="images/pix32.png" alt="">
                 <div class="pixgrabber_brand_text">
                     <span class="pixgrabber_title">PixGrabber</span>
-                    <span class="pixgrabber_subtitle">Group picker · <span id="pixgrabber_version">v0.3.7</span></span>
+                    <span class="pixgrabber_subtitle">Group picker · <span id="pixgrabber_version">v0.3.8</span></span>
                 </div>
             </div>
 
@@ -815,6 +887,37 @@
                     <span aria-hidden="true">↻</span>
                     Refresh
                 </button>
+
+                <div class="pixgrabber_thumb_size_wrap">
+                    <span class="pixgrabber_thumb_size_label">Thumbnails</span>
+                    <div
+                        class="pixgrabber_thumb_size"
+                        role="group"
+                        aria-label="Thumbnail size"
+                    >
+                        <button
+                            class="pixgrabber_size_button"
+                            type="button"
+                            data-size="small"
+                            aria-pressed="false"
+                            title="Small thumbnails"
+                        >S</button>
+                        <button
+                            class="pixgrabber_size_button active"
+                            type="button"
+                            data-size="medium"
+                            aria-pressed="true"
+                            title="Medium thumbnails"
+                        >M</button>
+                        <button
+                            class="pixgrabber_size_button"
+                            type="button"
+                            data-size="large"
+                            aria-pressed="false"
+                            title="Large thumbnails"
+                        >L</button>
+                    </div>
+                </div>
 
                 <div class="pixgrabber_auto_wrap">
                     <label class="pixgrabber_auto_label">
