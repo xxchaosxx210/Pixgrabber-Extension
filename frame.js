@@ -54,6 +54,48 @@
         status.classList.toggle("error", state === "error");
     }
 
+
+    function setConnectionStatus(state) {
+        const indicator = document.getElementById("pixgrabber_connection");
+        const text = document.getElementById("pixgrabber_connection_text");
+        if (!indicator || !text) {
+            return;
+        }
+
+        indicator.classList.toggle("connected", state === "connected");
+        indicator.classList.toggle("disconnected", state === "disconnected");
+
+        if (state === "connected") {
+            text.textContent = "PixGrabber connected";
+        } else if (state === "disconnected") {
+            text.textContent = "PixGrabber not running";
+        } else {
+            text.textContent = "Checking PixGrabber…";
+        }
+    }
+
+    async function checkPixGrabberStatus() {
+        setConnectionStatus("checking");
+
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: "get-pixgrabber-status"
+            });
+
+            const running = Boolean(
+                response &&
+                response.ok &&
+                response.running
+            );
+
+            setConnectionStatus(running ? "connected" : "disconnected");
+            return running;
+        } catch (error) {
+            setConnectionStatus("disconnected");
+            return false;
+        }
+    }
+
     function updateAutoState(hostname) {
         const checkbox = document.getElementById("pixgrabber_auto");
         const siteLabel = document.getElementById("pixgrabber_site");
@@ -221,9 +263,18 @@
         return selected;
     }
 
-    function onSubmitButton() {
+    async function onSubmitButton() {
         const selected = getSelected();
         if (selected.length === 0) {
+            return;
+        }
+
+        const running = await checkPixGrabberStatus();
+        if (!running) {
+            setFooterStatus(
+                "PixGrabber isn't running. Start the desktop app, then try again.",
+                "error"
+            );
             return;
         }
 
@@ -450,6 +501,7 @@
                 : "Unable to connect to PixGrabber.",
             "error"
         );
+        checkPixGrabberStatus();
     }
 
     function updateMinimizeUi() {
@@ -705,6 +757,7 @@
 
     setupResizeHandle();
     setupScrollPersistence();
+    checkPixGrabberStatus();
     restoreUiState().finally(() => {
         requestGroups();
     });
