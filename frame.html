@@ -255,18 +255,31 @@
                 background: var(--panel);
                 box-shadow: 0 4px 14px rgba(26, 39, 56, 0.055);
                 cursor: pointer;
-                transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease;
+                transition:
+                    border-color 130ms ease,
+                    background 130ms ease,
+                    box-shadow 130ms ease;
             }
 
             .pixgrabber_holder:hover {
-                border-color: #b9c8dc;
-                box-shadow: 0 6px 18px rgba(26, 39, 56, 0.08);
+                border-color: #9fb7d7;
+                background: #fbfdff;
+                box-shadow: 0 7px 20px rgba(26, 39, 56, 0.10);
             }
 
             .pixgrabber_holder[data-selected="true"] {
                 border-color: var(--blue);
                 background: var(--blue-soft);
-                box-shadow: 0 0 0 1px rgba(23, 105, 224, 0.16), 0 6px 18px rgba(23, 105, 224, 0.09);
+                box-shadow:
+                    0 0 0 2px rgba(23, 105, 224, 0.18),
+                    0 8px 22px rgba(23, 105, 224, 0.12);
+            }
+
+            .pixgrabber_holder[data-selected="true"]:hover {
+                border-color: var(--blue-strong);
+                box-shadow:
+                    0 0 0 2px rgba(23, 105, 224, 0.24),
+                    0 9px 24px rgba(23, 105, 224, 0.15);
             }
 
             .pixgrabber_group_header {
@@ -280,29 +293,45 @@
             }
 
             .pixgrabber_holder[data-selected="true"] .pixgrabber_group_header {
-                background: #eaf3ff;
-                border-bottom-color: #c8dcfb;
+                background: #e5f0ff;
+                border-bottom-color: #bfd6f8;
+            }
+
+            .pixgrabber_holder[data-selected="true"] .pixgrabber_group_title {
+                color: var(--blue-strong);
             }
 
             .pixgrabber_group_check {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 22px;
-                height: 22px;
-                flex: 0 0 22px;
-                border: 1px solid #b8c5d5;
-                border-radius: 6px;
+                width: 23px;
+                height: 23px;
+                flex: 0 0 23px;
+                border: 1px solid #aebed2;
+                border-radius: 7px;
                 background: #ffffff;
                 color: transparent;
                 font-size: 15px;
                 font-weight: 800;
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+                transition:
+                    border-color 130ms ease,
+                    background 130ms ease,
+                    box-shadow 130ms ease;
+            }
+
+            .pixgrabber_holder:hover .pixgrabber_group_check {
+                border-color: #7fa6da;
             }
 
             .pixgrabber_holder[data-selected="true"] .pixgrabber_group_check {
                 border-color: var(--blue);
                 background: var(--blue);
                 color: #ffffff;
+                box-shadow:
+                    0 0 0 3px rgba(23, 105, 224, 0.14),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
             }
 
             .pixgrabber_group_title {
@@ -328,9 +357,26 @@
 
             .pixgrabber_expand_button {
                 min-height: 30px;
-                padding: 0 10px;
+                padding: 0 11px;
+                border-color: #b9d1f4;
+                background: var(--blue-soft);
+                color: var(--blue-strong);
                 font-size: 12px;
-                background: #ffffff;
+                font-weight: 700;
+            }
+
+            .pixgrabber_expand_button:hover {
+                border-color: #8fb7ee;
+                background: #e3efff;
+            }
+
+            .pixgrabber_button:focus-visible,
+            .pixgrabber_icon_button:focus-visible,
+            .pixgrabber_expand_button:focus-visible,
+            .pixgrabber_primary:focus-visible,
+            .pixgrabber_auto_label input:focus-visible {
+                outline: 3px solid rgba(23, 105, 224, 0.24);
+                outline-offset: 2px;
             }
 
             .pixgrabber_thumb_strip {
@@ -531,7 +577,7 @@
                 <img src="images/pix32.png" alt="">
                 <div class="pixgrabber_brand_text">
                     <span class="pixgrabber_title">PixGrabber</span>
-                    <span class="pixgrabber_subtitle">Group picker · <span id="pixgrabber_version">v0.3.4</span></span>
+                    <span class="pixgrabber_subtitle">Group picker · <span id="pixgrabber_version">v0.3.5</span></span>
                 </div>
             </div>
 
