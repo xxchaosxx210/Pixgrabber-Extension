@@ -5,6 +5,117 @@
     const STYLE_SELECTED_ON = "10px solid #0033cc";
     const STYLE_SELECTED_OFF = "10px solid #324d88";
 
+    let currentHostname = "";
+
+    function hostPatterns(hostname) {
+        return [
+            `https://${hostname}/*`,
+            `http://${hostname}/*`
+        ];
+    }
+
+    function setAutoStatus(text, isError = false) {
+        const status = document.getElementById("pixgrabber_auto_status");
+        if (!status) {
+            return;
+        }
+
+        status.textContent = text;
+        status.classList.toggle("error", isError);
+    }
+
+    function updateAutoState(hostname) {
+        const checkbox = document.getElementById("pixgrabber_auto");
+        const siteLabel = document.getElementById("pixgrabber_site");
+
+        if (!checkbox || !siteLabel) {
+            return;
+        }
+
+        currentHostname = hostname || "";
+        siteLabel.textContent = currentHostname || "this site";
+        checkbox.disabled = !currentHostname;
+
+        if (!currentHostname) {
+            checkbox.checked = false;
+            return;
+        }
+
+        chrome.runtime.sendMessage(
+            {
+                type: "get-auto-site-state",
+                hostname: currentHostname
+            },
+            (response) => {
+                if (chrome.runtime.lastError) {
+                    checkbox.checked = false;
+                    return;
+                }
+
+                checkbox.checked = Boolean(
+                    response && response.ok && response.enabled
+                );
+            }
+        );
+    }
+
+    async function onAutoChanged(event) {
+        const checkbox = event.currentTarget;
+
+        if (!currentHostname) {
+            checkbox.checked = false;
+            return;
+        }
+
+        checkbox.disabled = true;
+        setAutoStatus("");
+
+        try {
+            if (checkbox.checked) {
+                const granted = await chrome.permissions.request({
+                    origins: hostPatterns(currentHostname)
+                });
+
+                if (!granted) {
+                    checkbox.checked = false;
+                    setAutoStatus("Chrome permission was not granted.", true);
+                    return;
+                }
+            }
+
+            const response = await chrome.runtime.sendMessage({
+                type: "set-auto-site",
+                hostname: currentHostname,
+                enabled: checkbox.checked
+            });
+
+            if (!response || !response.ok) {
+                checkbox.checked = false;
+                setAutoStatus(
+                    response && response.error
+                        ? response.error
+                        : "Unable to change automatic loading.",
+                    true
+                );
+                return;
+            }
+
+            setAutoStatus(
+                checkbox.checked
+                    ? "PixGrabber will open automatically on this site."
+                    : "Automatic loading disabled for this site."
+            );
+        } catch (error) {
+            checkbox.checked = false;
+            setAutoStatus(
+                error && error.message ? error.message : String(error),
+                true
+            );
+        } finally {
+            checkbox.disabled = false;
+        }
+    }
+
     function onDivClick(event) {
         const div = event.currentTarget;
         const selected = div.dataset.selected === "true";
@@ -56,6 +167,8 @@
             existing.remove();
         }
 
+        updateAutoState(json.hostname);
+
         const view = document.createElement("div");
         view.id = "pixgrabber_view";
         document.body.appendChild(view);
@@ -94,13 +207,6 @@
             div.addEventListener("click", onDivClick, false);
             view.appendChild(div);
         }
-
-        const submit = document.createElement("button");
-        submit.type = "button";
-        submit.className = "pixgrabber_submit";
-        submit.textContent = "Submit";
-        submit.addEventListener("click", onSubmitButton);
-        document.body.appendChild(submit);
     }
 
     window.addEventListener("message", (event) => {
@@ -119,6 +225,12 @@
 
         renderGroups(message);
     });
+
+    document.getElementById("pixgrabber_auto")
+        .addEventListener("change", onAutoChanged);
+
+    document.getElementById("pixgrabber_submit")
+        .addEventListener("click", onSubmitButton);
 
     window.parent.postMessage(
         {
