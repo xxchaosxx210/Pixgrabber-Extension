@@ -528,6 +528,11 @@
     document.getElementById("pixgrabber_clear")
         .addEventListener("click", onClear);
 
+    const versionLabel = document.getElementById("pixgrabber_version");
+    if (versionLabel) {
+        versionLabel.textContent = `v${chrome.runtime.getManifest().version}`;
+    }
+
     setupResizeHandle();
     requestGroups();
 })();
