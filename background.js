@@ -12,29 +12,38 @@ function encodePayload(payload) {
     return btoa(binary);
 }
 
-function normalizeHost(hostname) {
-    return String(hostname || "").trim().toLowerCase();
+function normalizeSiteKey(siteKey) {
+    const value = String(siteKey || "").trim().toLowerCase();
+    if (value === "file://" || value === "file") {
+        return "file://";
+    }
+    return value;
 }
 
-function hostPatterns(hostname) {
-    const host = normalizeHost(hostname);
+function sitePatterns(siteKey) {
+    const key = normalizeSiteKey(siteKey);
+
+    if (key === "file://") {
+        return ["file:///*"];
+    }
+
     return [
-        `https://${host}/*`,
-        `http://${host}/*`
+        `https://${key}/*`,
+        `http://${key}/*`
     ];
 }
 
-function hashHost(hostname) {
+function hashSiteKey(siteKey) {
     let hash = 2166136261;
-    for (const char of hostname) {
+    for (const char of normalizeSiteKey(siteKey)) {
         hash ^= char.charCodeAt(0);
         hash = Math.imul(hash, 16777619);
     }
     return (hash >>> 0).toString(16);
 }
 
-function autoScriptId(hostname) {
-    return `${AUTO_SCRIPT_PREFIX}${hashHost(normalizeHost(hostname))}`;
+function autoScriptId(siteKey) {
+    return `${AUTO_SCRIPT_PREFIX}${hashSiteKey(siteKey)}`;
 }
 
 async function getAutoSites() {
@@ -42,37 +51,50 @@ async function getAutoSites() {
     const sites = Array.isArray(stored[AUTO_SITES_KEY])
         ? stored[AUTO_SITES_KEY]
         : [];
-    return sites.map(normalizeHost).filter(Boolean);
+    return sites.map(normalizeSiteKey).filter(Boolean);
 }
 
 async function setAutoSites(sites) {
-    const unique = [...new Set(sites.map(normalizeHost).filter(Boolean))];
+    const unique = [...new Set(sites.map(normalizeSiteKey).filter(Boolean))];
     await chrome.storage.local.set({[AUTO_SITES_KEY]: unique});
     return unique;
 }
 
-async function isAutoSite(hostname) {
-    const host = normalizeHost(hostname);
-    if (!host) {
+async function isAutoSite(siteKey) {
+    const key = normalizeSiteKey(siteKey);
+    if (!key) {
         return false;
     }
     const sites = await getAutoSites();
-    return sites.includes(host);
+    return sites.includes(key);
 }
 
-async function registerAutoSite(hostname) {
-    const host = normalizeHost(hostname);
-    if (!host) {
+async function registerAutoSite(siteKey) {
+    const key = normalizeSiteKey(siteKey);
+    if (!key) {
         throw new Error("Invalid site");
     }
 
-    const patterns = hostPatterns(host);
-    const hasPermission = await chrome.permissions.contains({origins: patterns});
-    if (!hasPermission) {
-        throw new Error("Chrome has not granted access to this site");
+    if (key === "file://") {
+        const fileAccessAllowed = await chrome.extension.isAllowedFileSchemeAccess();
+        if (!fileAccessAllowed) {
+            throw new Error(
+                "Enable 'Allow access to file URLs' in Chrome extension details first"
+            );
+        }
     }
 
-    const id = autoScriptId(host);
+    const patterns = sitePatterns(key);
+    const hasPermission = await chrome.permissions.contains({origins: patterns});
+    if (!hasPermission) {
+        throw new Error(
+            key === "file://"
+                ? "Chrome has not granted access to local files"
+                : "Chrome has not granted access to this site"
+        );
+    }
+
+    const id = autoScriptId(key);
 
     try {
         await chrome.scripting.unregisterContentScripts({ids: [id]});
@@ -90,19 +112,19 @@ async function registerAutoSite(hostname) {
     }]);
 
     const sites = await getAutoSites();
-    if (!sites.includes(host)) {
-        sites.push(host);
+    if (!sites.includes(key)) {
+        sites.push(key);
         await setAutoSites(sites);
     }
 }
 
-async function unregisterAutoSite(hostname) {
-    const host = normalizeHost(hostname);
-    if (!host) {
+async function unregisterAutoSite(siteKey) {
+    const key = normalizeSiteKey(siteKey);
+    if (!key) {
         return;
     }
 
-    const id = autoScriptId(host);
+    const id = autoScriptId(key);
 
     try {
         await chrome.scripting.unregisterContentScripts({ids: [id]});
@@ -111,31 +133,40 @@ async function unregisterAutoSite(hostname) {
     }
 
     const sites = await getAutoSites();
-    await setAutoSites(sites.filter((site) => site !== host));
+    await setAutoSites(sites.filter((site) => site !== key));
 
-    try {
-        await chrome.permissions.remove({origins: hostPatterns(host)});
-    } catch (error) {
-        console.warn("Could not remove site permission:", error);
+    // Keep the user's global local-file access setting intact when Auto is disabled.
+    // Chrome controls file:// access with its own "Allow access to file URLs" toggle.
+    if (key !== "file://") {
+        try {
+            await chrome.permissions.remove({origins: sitePatterns(key)});
+        } catch (error) {
+            console.warn("Could not remove site permission:", error);
+        }
     }
 }
 
 async function syncAutoSites() {
     const sites = await getAutoSites();
 
-    for (const host of sites) {
+    for (const siteKey of sites) {
         try {
+            const patterns = sitePatterns(siteKey);
             const permitted = await chrome.permissions.contains({
-                origins: hostPatterns(host)
+                origins: patterns
             });
 
-            if (permitted) {
-                await registerAutoSite(host);
+            const fileAccessAllowed =
+                siteKey !== "file://" ||
+                await chrome.extension.isAllowedFileSchemeAccess();
+
+            if (permitted && fileAccessAllowed) {
+                await registerAutoSite(siteKey);
             } else {
-                await unregisterAutoSite(host);
+                await unregisterAutoSite(siteKey);
             }
         } catch (error) {
-            console.warn(`Unable to restore automatic site ${host}:`, error);
+            console.warn(`Unable to restore automatic site ${siteKey}:`, error);
         }
     }
 }
@@ -250,7 +281,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === "get-auto-site-state") {
-        isAutoSite(message.hostname)
+        isAutoSite(message.siteKey || message.hostname)
             .then((enabled) => sendResponse({ok: true, enabled: enabled}))
             .catch((error) => sendResponse({
                 ok: false,
@@ -261,9 +292,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === "set-auto-site") {
+        const siteKey = message.siteKey || message.hostname;
         const operation = message.enabled
-            ? registerAutoSite(message.hostname)
-            : unregisterAutoSite(message.hostname);
+            ? registerAutoSite(siteKey)
+            : unregisterAutoSite(siteKey);
 
         operation
             .then(() => sendResponse({ok: true, enabled: Boolean(message.enabled)}))
