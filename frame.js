@@ -8,7 +8,7 @@
     const NOTICE_HIDE_MS = 3200;
     const THUMBNAIL_SIZES = new Set(["small", "medium", "large"]);
 
-    let currentHostname = "";
+    let currentSiteKey = "";
     let currentPageUrl = "";
     let savedPageUrl = "";
     let minimized = false;
@@ -19,10 +19,14 @@
     let noticeTimer = null;
     let thumbnailSize = "medium";
 
-    function hostPatterns(hostname) {
+    function sitePatterns(siteKey) {
+        if (siteKey === "file://") {
+            return ["file:///*"];
+        }
+
         return [
-            `https://${hostname}/*`,
-            `http://${hostname}/*`
+            `https://${siteKey}/*`,
+            `http://${siteKey}/*`
         ];
     }
 
@@ -224,7 +228,7 @@
         }
     }
 
-    function updateAutoState(hostname) {
+    function updateAutoState(siteKey) {
         const checkbox = document.getElementById("pixgrabber_auto");
         const siteLabel = document.getElementById("pixgrabber_site");
 
@@ -232,11 +236,14 @@
             return;
         }
 
-        currentHostname = hostname || "";
-        siteLabel.textContent = currentHostname || "this site";
-        checkbox.disabled = !currentHostname;
+        currentSiteKey = siteKey || "";
+        siteLabel.textContent =
+            currentSiteKey === "file://"
+                ? "local files"
+                : (currentSiteKey || "this site");
+        checkbox.disabled = !currentSiteKey;
 
-        if (!currentHostname) {
+        if (!currentSiteKey) {
             checkbox.checked = false;
             return;
         }
@@ -244,7 +251,7 @@
         chrome.runtime.sendMessage(
             {
                 type: "get-auto-site-state",
-                hostname: currentHostname
+                siteKey: currentSiteKey
             },
             (response) => {
                 if (chrome.runtime.lastError) {
@@ -262,7 +269,7 @@
     async function onAutoChanged(event) {
         const checkbox = event.currentTarget;
 
-        if (!currentHostname) {
+        if (!currentSiteKey) {
             checkbox.checked = false;
             return;
         }
@@ -272,20 +279,39 @@
 
         try {
             if (checkbox.checked) {
+                if (currentSiteKey === "file://") {
+                    const fileAccessAllowed =
+                        await chrome.extension.isAllowedFileSchemeAccess();
+
+                    if (!fileAccessAllowed) {
+                        checkbox.checked = false;
+                        setAutoStatus(
+                            "Enable 'Allow access to file URLs' in Chrome extension details first.",
+                            true
+                        );
+                        return;
+                    }
+                }
+
                 const granted = await chrome.permissions.request({
-                    origins: hostPatterns(currentHostname)
+                    origins: sitePatterns(currentSiteKey)
                 });
 
                 if (!granted) {
                     checkbox.checked = false;
-                    setAutoStatus("Chrome permission was not granted.", true);
+                    setAutoStatus(
+                        currentSiteKey === "file://"
+                            ? "Chrome permission for local files was not granted."
+                            : "Chrome permission was not granted.",
+                        true
+                    );
                     return;
                 }
             }
 
             const response = await chrome.runtime.sendMessage({
                 type: "set-auto-site",
-                hostname: currentHostname,
+                siteKey: currentSiteKey,
                 enabled: checkbox.checked
             });
 
@@ -302,8 +328,16 @@
 
             setAutoStatus(
                 checkbox.checked
-                    ? "PixGrabber will open automatically on this site."
-                    : "Automatic loading disabled for this site."
+                    ? (
+                        currentSiteKey === "file://"
+                            ? "PixGrabber will open automatically on local files."
+                            : "PixGrabber will open automatically on this site."
+                    )
+                    : (
+                        currentSiteKey === "file://"
+                            ? "Automatic loading disabled for local files."
+                            : "Automatic loading disabled for this site."
+                    )
             );
         } catch (error) {
             checkbox.checked = false;
@@ -519,7 +553,7 @@
         }
 
         view.replaceChildren();
-        updateAutoState(json.hostname);
+        updateAutoState(json.siteKey || json.hostname);
         preparePageState(json.url);
 
         const groups = Array.isArray(json.links) ? json.links : [];
