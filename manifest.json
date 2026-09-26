@@ -1,6 +1,6 @@
 {
   "name": "Pix Thumbnail Grabber",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Pick and choose groups of thumbnails to download with the PixGrabber desktop application.",
   "manifest_version": 3,
   "minimum_chrome_version": "96",
@@ -21,7 +21,8 @@
   ],
   "optional_host_permissions": [
     "http://*/*",
-    "https://*/*"
+    "https://*/*",
+    "file:///*"
   ],
   "background": {
     "service_worker": "background.js"
