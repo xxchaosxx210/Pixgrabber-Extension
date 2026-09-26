@@ -18,6 +18,7 @@
     let scrollSaveTimer = null;
     let noticeTimer = null;
     let thumbnailSize = "medium";
+    let fullPosts = false;
 
     function sitePatterns(siteKey) {
         if (siteKey === "file://") {
@@ -498,12 +499,46 @@
         setFooterStatus("Selection cleared.");
     }
 
+    function applyFullPostsView(save = true) {
+        const checkbox = document.getElementById("pixgrabber_full_posts");
+        if (checkbox) {
+            checkbox.checked = fullPosts;
+        }
+
+        for (const div of document.getElementsByClassName(DIV_CLASSNAME)) {
+            const groupIndex = Number(div.dataset.groupIndex);
+            const expanded =
+                fullPosts ||
+                (
+                    Number.isInteger(groupIndex) &&
+                    expandedGroupIndexes.has(groupIndex)
+                );
+
+            setGroupExpanded(div, expanded);
+        }
+
+        if (save) {
+            saveUiState(false);
+        }
+    }
+
+    function onFullPostsChanged(event) {
+        fullPosts = Boolean(event.currentTarget.checked);
+        applyFullPostsView();
+
+        setFooterStatus(
+            fullPosts
+                ? "Full post view enabled."
+                : "Compact post view enabled."
+        );
+    }
+
     function setGroupExpanded(div, expanded) {
         div.dataset.expanded = expanded ? "true" : "false";
 
         const strip = div.querySelector(".pixgrabber_thumb_strip");
         const button = div.querySelector(".pixgrabber_expand_button");
-        if (!strip || !button) {
+        if (!strip) {
             return;
         }
 
@@ -516,10 +551,14 @@
         });
 
         const hiddenCount = Math.max(anchors.length - PREVIEW_IMAGE_LIMIT, 0);
-        button.textContent = expanded
-            ? "Collapse"
-            : `+${hiddenCount} more`;
-        button.setAttribute("aria-expanded", expanded ? "true" : "false");
+
+        if (button) {
+            button.hidden = fullPosts;
+            button.textContent = expanded
+                ? "Collapse"
+                : `+${hiddenCount} more`;
+            button.setAttribute("aria-expanded", expanded ? "true" : "false");
+        }
     }
 
     function onExpandButton(event) {
@@ -577,7 +616,8 @@
 
         groups.forEach((group, index) => {
             const div = document.createElement("section");
-            const shouldExpand = expandedGroupIndexes.has(index);
+            const shouldExpand =
+                fullPosts || expandedGroupIndexes.has(index);
 
             div.className = DIV_CLASSNAME;
             div.dataset.selected = "false";
@@ -620,6 +660,7 @@
                     ? "Collapse"
                     : `+${count - PREVIEW_IMAGE_LIMIT} more`;
                 expand.setAttribute("aria-expanded", shouldExpand ? "true" : "false");
+                expand.hidden = fullPosts;
                 expand.addEventListener("click", onExpandButton);
                 header.appendChild(expand);
             }
@@ -723,7 +764,8 @@
                     scrollTop: Math.round(lastScrollTop),
                     pageUrl: savedPageUrl,
                     expandedGroups: Array.from(expandedGroupIndexes).sort((a, b) => a - b),
-                    thumbnailSize: thumbnailSize
+                    thumbnailSize: thumbnailSize,
+                    fullPosts: fullPosts
                 }
             });
         } catch (error) {
@@ -766,12 +808,15 @@
                 if (THUMBNAIL_SIZES.has(state.thumbnailSize)) {
                     thumbnailSize = state.thumbnailSize;
                 }
+
+                fullPosts = Boolean(state.fullPosts);
             }
         } catch (error) {
             console.warn("Could not restore PixGrabber drawer state:", error);
         }
 
         applyThumbnailSize(thumbnailSize, false);
+        applyFullPostsView(false);
         updateMinimizeUi();
         postToParent("resize-picker", {
             height: minimized ? MINIMIZED_HEIGHT : lastExpandedHeight
@@ -924,6 +969,9 @@
 
     document.getElementById("pixgrabber_auto")
         .addEventListener("change", onAutoChanged);
+
+    document.getElementById("pixgrabber_full_posts")
+        .addEventListener("change", onFullPostsChanged);
 
     document.getElementById("pixgrabber_submit")
         .addEventListener("click", onSubmitButton);
