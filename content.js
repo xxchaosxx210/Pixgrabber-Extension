@@ -12,6 +12,12 @@
     const EXTENSION_ORIGIN = new URL(chrome.runtime.getURL("/")).origin;
     const MIN_PICKER_HEIGHT = 52;
 
+    function currentSiteKey() {
+        return window.location.protocol === "file:"
+            ? "file://"
+            : window.location.hostname;
+    }
+
     function createThumbnailGroups() {
         const groups = [];
         let group = [];
@@ -135,6 +141,7 @@
                     links: createThumbnailGroups(),
                     title: document.title,
                     hostname: window.location.hostname,
+                    siteKey: currentSiteKey(),
                     url: window.location.href
                 },
                 EXTENSION_ORIGIN
@@ -198,7 +205,7 @@
     chrome.runtime.sendMessage(
         {
             type: "get-auto-site-state",
-            hostname: window.location.hostname
+            siteKey: currentSiteKey()
         },
         (response) => {
             if (chrome.runtime.lastError) {
