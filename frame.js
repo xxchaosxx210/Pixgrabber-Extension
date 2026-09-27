@@ -5,8 +5,10 @@
     const MIN_DRAWER_HEIGHT = 220;
     const MINIMIZED_HEIGHT = 52;
     const UI_STATE_KEY = "pickerUiState";
+    const NOTICE_HIDE_MS = 3200;
+    const THUMBNAIL_SIZES = new Set(["small", "medium", "large"]);
 
-    let currentHostname = "";
+    let currentSiteKey = "";
     let currentPageUrl = "";
     let savedPageUrl = "";
     let minimized = false;
@@ -14,11 +16,18 @@
     let lastScrollTop = 0;
     let expandedGroupIndexes = new Set();
     let scrollSaveTimer = null;
+    let noticeTimer = null;
+    let thumbnailSize = "medium";
+    let fullPosts = false;
 
-    function hostPatterns(hostname) {
+    function sitePatterns(siteKey) {
+        if (siteKey === "file://") {
+            return ["file:///*"];
+        }
+
         return [
-            `https://${hostname}/*`,
-            `http://${hostname}/*`
+            `https://${siteKey}/*`,
+            `http://${siteKey}/*`
         ];
     }
 
@@ -52,6 +61,130 @@
         status.textContent = text;
         status.classList.toggle("success", state === "success");
         status.classList.toggle("error", state === "error");
+    }
+
+    function applyThumbnailSize(size, save = true) {
+        thumbnailSize = THUMBNAIL_SIZES.has(size) ? size : "medium";
+        document.body.dataset.thumbnailSize = thumbnailSize;
+
+        for (const button of document.querySelectorAll(".pixgrabber_size_button")) {
+            const active = button.dataset.size === thumbnailSize;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", active ? "true" : "false");
+        }
+
+        if (save) {
+            saveUiState(false);
+        }
+    }
+
+    function onThumbnailSizeClick(event) {
+        const size = event.currentTarget.dataset.size;
+        if (!THUMBNAIL_SIZES.has(size)) {
+            return;
+        }
+
+        applyThumbnailSize(size);
+        setFooterStatus(
+            `Thumbnail size: ${size.charAt(0).toUpperCase() + size.slice(1)}.`
+        );
+    }
+
+    function clearNotice() {
+        const notice = document.getElementById("pixgrabber_notice");
+        if (!notice) {
+            return;
+        }
+
+        if (noticeTimer !== null) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        notice.hidden = true;
+        notice.classList.remove("success", "error", "info");
+    }
+
+    function showNotice(state, title, message, autoHide = false) {
+        const notice = document.getElementById("pixgrabber_notice");
+        const icon = document.getElementById("pixgrabber_notice_icon");
+        const titleNode = document.getElementById("pixgrabber_notice_title");
+        const messageNode = document.getElementById("pixgrabber_notice_message");
+
+        if (!notice || !icon || !titleNode || !messageNode) {
+            return;
+        }
+
+        if (noticeTimer !== null) {
+            window.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+
+        notice.classList.remove("success", "error", "info");
+        notice.classList.add(state || "info");
+
+        if (state === "success") {
+            icon.textContent = "✓";
+        } else if (state === "error") {
+            icon.textContent = "!";
+        } else {
+            icon.textContent = "i";
+        }
+
+        titleNode.textContent = title;
+        messageNode.textContent = message;
+        notice.hidden = false;
+
+        if (autoHide) {
+            noticeTimer = window.setTimeout(clearNotice, NOTICE_HIDE_MS);
+        }
+    }
+
+    function renderViewState(state, title, message, actionLabel = "") {
+        const view = document.getElementById("pixgrabber_view");
+        if (!view) {
+            return;
+        }
+
+        view.replaceChildren();
+
+        const card = document.createElement("div");
+        card.className = `pixgrabber_state_card ${state}`;
+
+        const icon = document.createElement("div");
+        icon.className = `pixgrabber_state_icon ${state}`;
+        icon.setAttribute("aria-hidden", "true");
+
+        if (state === "loading") {
+            const spinner = document.createElement("span");
+            spinner.className = "pixgrabber_spinner";
+            icon.appendChild(spinner);
+        } else if (state === "empty") {
+            icon.textContent = "○";
+        } else {
+            icon.textContent = "!";
+        }
+
+        const titleNode = document.createElement("div");
+        titleNode.className = "pixgrabber_state_title";
+        titleNode.textContent = title;
+
+        const messageNode = document.createElement("div");
+        messageNode.className = "pixgrabber_state_message";
+        messageNode.textContent = message;
+
+        card.append(icon, titleNode, messageNode);
+
+        if (actionLabel) {
+            const action = document.createElement("button");
+            action.className = "pixgrabber_state_action";
+            action.type = "button";
+            action.textContent = actionLabel;
+            action.addEventListener("click", requestGroups);
+            card.appendChild(action);
+        }
+
+        view.appendChild(card);
     }
 
 
@@ -96,7 +229,7 @@
         }
     }
 
-    function updateAutoState(hostname) {
+    function updateAutoState(siteKey) {
         const checkbox = document.getElementById("pixgrabber_auto");
         const siteLabel = document.getElementById("pixgrabber_site");
 
@@ -104,11 +237,14 @@
             return;
         }
 
-        currentHostname = hostname || "";
-        siteLabel.textContent = currentHostname || "this site";
-        checkbox.disabled = !currentHostname;
+        currentSiteKey = siteKey || "";
+        siteLabel.textContent =
+            currentSiteKey === "file://"
+                ? "local files"
+                : (currentSiteKey || "this site");
+        checkbox.disabled = !currentSiteKey;
 
-        if (!currentHostname) {
+        if (!currentSiteKey) {
             checkbox.checked = false;
             return;
         }
@@ -116,7 +252,7 @@
         chrome.runtime.sendMessage(
             {
                 type: "get-auto-site-state",
-                hostname: currentHostname
+                siteKey: currentSiteKey
             },
             (response) => {
                 if (chrome.runtime.lastError) {
@@ -134,7 +270,7 @@
     async function onAutoChanged(event) {
         const checkbox = event.currentTarget;
 
-        if (!currentHostname) {
+        if (!currentSiteKey) {
             checkbox.checked = false;
             return;
         }
@@ -144,20 +280,39 @@
 
         try {
             if (checkbox.checked) {
+                if (currentSiteKey === "file://") {
+                    const fileAccessAllowed =
+                        await chrome.extension.isAllowedFileSchemeAccess();
+
+                    if (!fileAccessAllowed) {
+                        checkbox.checked = false;
+                        setAutoStatus(
+                            "Enable 'Allow access to file URLs' in Chrome extension details first.",
+                            true
+                        );
+                        return;
+                    }
+                }
+
                 const granted = await chrome.permissions.request({
-                    origins: hostPatterns(currentHostname)
+                    origins: sitePatterns(currentSiteKey)
                 });
 
                 if (!granted) {
                     checkbox.checked = false;
-                    setAutoStatus("Chrome permission was not granted.", true);
+                    setAutoStatus(
+                        currentSiteKey === "file://"
+                            ? "Chrome permission for local files was not granted."
+                            : "Chrome permission was not granted.",
+                        true
+                    );
                     return;
                 }
             }
 
             const response = await chrome.runtime.sendMessage({
                 type: "set-auto-site",
-                hostname: currentHostname,
+                siteKey: currentSiteKey,
                 enabled: checkbox.checked
             });
 
@@ -174,8 +329,16 @@
 
             setAutoStatus(
                 checkbox.checked
-                    ? "PixGrabber will open automatically on this site."
-                    : "Automatic loading disabled for this site."
+                    ? (
+                        currentSiteKey === "file://"
+                            ? "PixGrabber will open automatically on local files."
+                            : "PixGrabber will open automatically on this site."
+                    )
+                    : (
+                        currentSiteKey === "file://"
+                            ? "Automatic loading disabled for local files."
+                            : "Automatic loading disabled for this site."
+                    )
             );
         } catch (error) {
             checkbox.checked = false;
@@ -271,6 +434,11 @@
 
         const running = await checkPixGrabberStatus();
         if (!running) {
+            showNotice(
+                "error",
+                "PixGrabber isn’t running",
+                "Start the desktop app, then click Send to PixGrabber again."
+            );
             setFooterStatus(
                 "PixGrabber isn't running. Start the desktop app, then try again.",
                 "error"
@@ -290,6 +458,12 @@
     }
 
     function requestGroups() {
+        clearNotice();
+        renderViewState(
+            "loading",
+            "Scanning page…",
+            "Looking for linked thumbnail groups in page order."
+        );
         setFooterStatus("Scanning this page for thumbnail groups…");
         postToParent("request-groups");
     }
@@ -325,12 +499,46 @@
         setFooterStatus("Selection cleared.");
     }
 
+    function applyFullPostsView(save = true) {
+        const checkbox = document.getElementById("pixgrabber_full_posts");
+        if (checkbox) {
+            checkbox.checked = fullPosts;
+        }
+
+        for (const div of document.getElementsByClassName(DIV_CLASSNAME)) {
+            const groupIndex = Number(div.dataset.groupIndex);
+            const expanded =
+                fullPosts ||
+                (
+                    Number.isInteger(groupIndex) &&
+                    expandedGroupIndexes.has(groupIndex)
+                );
+
+            setGroupExpanded(div, expanded);
+        }
+
+        if (save) {
+            saveUiState(false);
+        }
+    }
+
+    function onFullPostsChanged(event) {
+        fullPosts = Boolean(event.currentTarget.checked);
+        applyFullPostsView();
+
+        setFooterStatus(
+            fullPosts
+                ? "Full post view enabled."
+                : "Compact post view enabled."
+        );
+    }
+
     function setGroupExpanded(div, expanded) {
         div.dataset.expanded = expanded ? "true" : "false";
 
         const strip = div.querySelector(".pixgrabber_thumb_strip");
         const button = div.querySelector(".pixgrabber_expand_button");
-        if (!strip || !button) {
+        if (!strip) {
             return;
         }
 
@@ -343,10 +551,14 @@
         });
 
         const hiddenCount = Math.max(anchors.length - PREVIEW_IMAGE_LIMIT, 0);
-        button.textContent = expanded
-            ? "Collapse"
-            : `+${hiddenCount} more`;
-        button.setAttribute("aria-expanded", expanded ? "true" : "false");
+
+        if (button) {
+            button.hidden = fullPosts;
+            button.textContent = expanded
+                ? "Collapse"
+                : `+${hiddenCount} more`;
+            button.setAttribute("aria-expanded", expanded ? "true" : "false");
+        }
     }
 
     function onExpandButton(event) {
@@ -380,16 +592,18 @@
         }
 
         view.replaceChildren();
-        updateAutoState(json.hostname);
+        updateAutoState(json.siteKey || json.hostname);
         preparePageState(json.url);
 
         const groups = Array.isArray(json.links) ? json.links : [];
 
         if (groups.length === 0) {
-            const empty = document.createElement("div");
-            empty.className = "pixgrabber_empty";
-            empty.textContent = "No thumbnail groups found on this page.";
-            view.appendChild(empty);
+            renderViewState(
+                "empty",
+                "No image groups found",
+                "PixGrabber couldn't find any linked thumbnail groups on this page.",
+                "Scan again"
+            );
             expandedGroupIndexes.clear();
             saveUiState(false);
             updateSelectionSummary();
@@ -398,9 +612,12 @@
             return;
         }
 
+        clearNotice();
+
         groups.forEach((group, index) => {
             const div = document.createElement("section");
-            const shouldExpand = expandedGroupIndexes.has(index);
+            const shouldExpand =
+                fullPosts || expandedGroupIndexes.has(index);
 
             div.className = DIV_CLASSNAME;
             div.dataset.selected = "false";
@@ -443,6 +660,7 @@
                     ? "Collapse"
                     : `+${count - PREVIEW_IMAGE_LIMIT} more`;
                 expand.setAttribute("aria-expanded", shouldExpand ? "true" : "false");
+                expand.hidden = fullPosts;
                 expand.addEventListener("click", onExpandButton);
                 header.appendChild(expand);
             }
@@ -491,16 +709,26 @@
         updateSelectionSummary();
 
         if (message.ok) {
+            showNotice(
+                "success",
+                "Sent to PixGrabber",
+                "Selected images were handed to the desktop app.",
+                true
+            );
             setFooterStatus("Sent to PixGrabber ✓", "success");
             return;
         }
 
-        setFooterStatus(
-            message.error
-                ? `Unable to send: ${message.error}`
-                : "Unable to connect to PixGrabber.",
-            "error"
+        const errorMessage = message.error
+            ? message.error
+            : "Unable to connect to PixGrabber.";
+
+        showNotice(
+            "error",
+            "Couldn’t send to PixGrabber",
+            errorMessage
         );
+        setFooterStatus(`Unable to send: ${errorMessage}`, "error");
         checkPixGrabberStatus();
     }
 
@@ -535,7 +763,9 @@
                     minimized: minimized,
                     scrollTop: Math.round(lastScrollTop),
                     pageUrl: savedPageUrl,
-                    expandedGroups: Array.from(expandedGroupIndexes).sort((a, b) => a - b)
+                    expandedGroups: Array.from(expandedGroupIndexes).sort((a, b) => a - b),
+                    thumbnailSize: thumbnailSize,
+                    fullPosts: fullPosts
                 }
             });
         } catch (error) {
@@ -574,11 +804,19 @@
                         )
                         : []
                 );
+
+                if (THUMBNAIL_SIZES.has(state.thumbnailSize)) {
+                    thumbnailSize = state.thumbnailSize;
+                }
+
+                fullPosts = Boolean(state.fullPosts);
             }
         } catch (error) {
             console.warn("Could not restore PixGrabber drawer state:", error);
         }
 
+        applyThumbnailSize(thumbnailSize, false);
+        applyFullPostsView(false);
         updateMinimizeUi();
         postToParent("resize-picker", {
             height: minimized ? MINIMIZED_HEIGHT : lastExpandedHeight
@@ -732,6 +970,9 @@
     document.getElementById("pixgrabber_auto")
         .addEventListener("change", onAutoChanged);
 
+    document.getElementById("pixgrabber_full_posts")
+        .addEventListener("change", onFullPostsChanged);
+
     document.getElementById("pixgrabber_submit")
         .addEventListener("click", onSubmitButton);
 
@@ -749,6 +990,13 @@
 
     document.getElementById("pixgrabber_clear")
         .addEventListener("click", onClear);
+
+    document.getElementById("pixgrabber_notice_close")
+        .addEventListener("click", clearNotice);
+
+    for (const button of document.querySelectorAll(".pixgrabber_size_button")) {
+        button.addEventListener("click", onThumbnailSizeClick);
+    }
 
     const versionLabel = document.getElementById("pixgrabber_version");
     if (versionLabel) {
